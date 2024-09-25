@@ -1,0 +1,17 @@
+# Ignore virtual environment
+venv/
+/venv
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+
