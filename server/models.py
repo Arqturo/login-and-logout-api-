@@ -15,7 +15,7 @@ class CustomUser(AbstractUser):
         null=True  
     )
     email = models.EmailField(unique=True)
-    full_name = models.CharField(max_length=255, blank=True)
+    full_name = models.CharField(max_length=255, blank=True, null=False)
 
 
     def save(self, *args, **kwargs):
