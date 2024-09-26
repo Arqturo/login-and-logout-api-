@@ -15,7 +15,7 @@ from django.core.mail import send_mail
 
 @api_view(['POST'])
 def login(request):
-    user = get_object_or_404(CustomUser, cedula=request.data['cedula'])
+    user = get_object_or_404(CustomUser, email=request.data['email'])
 
     if not user.check_password(request.data['password']):
         return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
