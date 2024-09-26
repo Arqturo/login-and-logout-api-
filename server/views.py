@@ -12,7 +12,7 @@ from .models import CustomUser  # Import your Custom User model
 
 @api_view(['POST'])
 def login(request):
-    user = get_object_or_404(CustomUser, username=request.data['username'])
+    user = get_object_or_404(CustomUser, cedula=request.data['cedula'])
 
     if not user.check_password(request.data['password']):
         return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)

@@ -4,4 +4,9 @@ from .models import CustomUser
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'phone_number']
+        fields = ['id', 'cedula', 'email', 'phone_number']
+        extra_kwargs = {
+            'cedula': {'required': True},
+            'email': {'required': True},
+            'phone_number': {'required': True}
+        }
