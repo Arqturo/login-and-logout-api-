@@ -10,3 +10,11 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'email': {'required': True},
             'phone_number': {'required': True}
         }
+
+class PasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField(required=True)
+    token = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, write_only=True)

@@ -1,14 +1,17 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .serializers import CustomUserSerializer  # Make sure this points to your new serializer
+from .serializers import CustomUserSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-
-from .models import CustomUser  # Import your Custom User model
+from .models import CustomUser
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
 
 @api_view(['POST'])
 def login(request):
@@ -27,9 +30,7 @@ def register(request):
     serializer = CustomUserSerializer(data=request.data)
 
     if serializer.is_valid():
-        user = serializer.save()  # Save the user using the serializer
-        
-        # Set the password after saving to hash it correctly
+        user = serializer.save()
         user.set_password(request.data['password'])
         user.save()
 
@@ -39,9 +40,53 @@ def register(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
+def password_reset(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = CustomUser.objects.get(email=email)
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Send email with the reset link
+        send_mail(
+            'Password Reset Request',
+            f'Use the link to reset your password: /password_reset/confirm?uid={uid}&token={token}',
+            'from@example.com',  # Replace with your sender email
+            [email],
+            fail_silently=False,
+        )
+        return Response({"message": "Password reset email sent."}, status=status.HTTP_200_OK)
+    except CustomUser.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+def password_reset_confirm(request):
+    uid = request.data.get('uid')
+    token = request.data.get('token')
+    new_password = request.data.get('new_password')
+
+    if not all([uid, token, new_password]):
+        return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user_id = urlsafe_base64_decode(uid).decode()
+        user = CustomUser.objects.get(pk=user_id)
+
+        if default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.save()
+            return Response({"message": "Password has been reset."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
+    except (CustomUser.DoesNotExist, ValueError):
+        return Response({"error": "Invalid user."}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def profile(request):
     serializer = CustomUserSerializer(instance=request.user)
-
     return Response(serializer.data, status=status.HTTP_200_OK)

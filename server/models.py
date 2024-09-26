@@ -19,7 +19,9 @@ class CustomUser(AbstractUser):
     def save(self, *args, **kwargs):
         if not self.email:
             raise ValueError("Email is required.")
+        if not self.username:  # Set username to cedula if not provided
+            self.username = self.cedula
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.cedula or self.username 
+        return self.cedula or self.username
