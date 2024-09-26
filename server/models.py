@@ -14,7 +14,9 @@ class CustomUser(AbstractUser):
         unique=True,
         null=True  
     )
-    email = models.EmailField(unique=True)  
+    email = models.EmailField(unique=True)
+    full_name = models.CharField(max_length=255, blank=True)
+
 
     def save(self, *args, **kwargs):
         if not self.email:
