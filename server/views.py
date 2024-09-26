@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import CustomUser
+from .models import CustomUser, UserCaja  
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
@@ -27,6 +27,13 @@ def login(request):
 
 @api_view(['POST'])
 def register(request):
+    cedula = request.data.get('cedula')
+
+    user_caja = UserCaja.objects.filter(CE_TRABAJADOR=cedula).first()
+    if not user_caja:
+        return Response({"error": "No esta registrado en la caja"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Proceed with user registration
     serializer = CustomUserSerializer(data=request.data)
 
     if serializer.is_valid():

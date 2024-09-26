@@ -27,3 +27,17 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.cedula or self.username
+
+ # Caja
+
+class UserCaja(models.Model):
+    CE_TRABAJADOR = models.CharField(max_length=100)
+    CO_UBICACION = models.CharField(max_length=100)
+    TIPOPERSONAL = models.CharField(max_length=100)
+    EMAIL = models.EmailField(max_length=255)
+    TELEFONOS = models.CharField(max_length=50)
+    CTABANCO = models.CharField(max_length=50)
+    DESCRIPCION = models.TextField(blank=True)
+
+    def __str__(self):
+        return self.CE_TRABAJADOR
