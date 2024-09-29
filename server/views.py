@@ -13,6 +13,17 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 
+from django.core.mail import EmailMessage
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
+import os
+
+ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 @api_view(['POST'])
 def login(request):
     user = get_object_or_404(CustomUser, email=request.data['email'])
@@ -99,3 +110,36 @@ def password_reset_confirm(request):
 def profile(request):
     serializer = CustomUserSerializer(instance=request.user)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def upload_files(request):
+    files = request.FILES.getlist('files')  # Get the list of uploaded files
+    if len(files) != 5:
+        return Response({"error": "Five files are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate file types
+    for file in files:
+        if not allowed_file(file.name):
+            return Response({"error": f"File '{file.name}' is not a valid PDF or JPEG."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Prepare email
+    user = request.user  # Get the authenticated user
+    full_name = f"{user.full_name}"
+    subject = f'Solicitud de Inscripcion de {full_name}'
+    message = ''
+    email = EmailMessage(subject, message, 'from@example.com', ['recipient@example.com'])
+
+    # Attach files to the email
+    for file in files:
+        email.attach(file.name, file.read(), file.content_type)
+
+    # Send email
+    try:
+        email.send(fail_silently=False)
+        return Response({"message": "Files uploaded and email sent successfully."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": f"Failed to send email: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
