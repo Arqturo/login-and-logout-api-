@@ -56,11 +56,13 @@ def password_reset(request):
         user = CustomUser.objects.get(email=email)
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+        print('Password Reset Request',f'Use the link to reset your password: /password_reset_confirm?uid={uid}&token={token}','from@example.com')
         
         # Send email with the reset link
         send_mail(
             'Password Reset Request',
-            f'Use the link to reset your password: /password_reset/confirm?uid={uid}&token={token}',
+            f'Use the link to reset your password: /password_reset_confirm?uid={uid}&token={token}',
             'from@example.com',  # Replace with your sender email
             [email],
             fail_silently=False,
