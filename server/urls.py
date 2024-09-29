@@ -25,7 +25,6 @@ urlpatterns = [
     re_path('profile', views.profile),
 
       # Reset
-
+    re_path('password_reset_confirm', views.password_reset_confirm),
     re_path('password_reset', views.password_reset),
-    re_path('password_reset/confirm', views.password_reset_confirm),
 ]
