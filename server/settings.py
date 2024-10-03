@@ -35,7 +35,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.example.com')  
 EMAIL_PORT = 587  
 EMAIL_USE_TLS = True  
@@ -155,5 +155,5 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Log the server start message
-server_start_message = os.getenv('SERVER_START_MESSAGE', 'Server has started.')
+server_start_message = os.getenv('SERVER_START_MESSAGE', 'Servidor activo.')
 logger.info(server_start_message)

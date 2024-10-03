@@ -133,6 +133,7 @@ def upload_files(request):
 
     # Validate file types for the five files
     for file_name in expected_files:
+        
         file = request.FILES.getlist(file_name)
 
         if file:
