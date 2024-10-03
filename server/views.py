@@ -151,7 +151,7 @@ def upload_files(request):
    
     subject = f'Solicitud de Inscripcion de {user} '
     message = ''
-    email = EmailMessage(subject, message, 'luisbetin1995@gmail.com', ['luisbetin1995@gmail.com'])
+    email = EmailMessage(subject, message, '', [''])
 
     # Attach the five files to the email
     for file in files:
