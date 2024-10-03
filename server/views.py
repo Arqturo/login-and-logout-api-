@@ -15,6 +15,10 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.core.mail import send_mail, EmailMessage
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}  # Add 'docx' for Word files
 ALLOWED_PLANILLA = {'docx'}
@@ -149,9 +153,9 @@ def upload_files(request):
     user = request.data.get("full_name")  # Get the authenticated user
     # full_name = f"{user.full_name}"
    
-    subject = f'Solicitud de Inscripcion de {user} '
+    subject = f'Solicitud de Inscripcion'
     message = ''
-    email = EmailMessage(subject, message, '', [''])
+    email = EmailMessage(subject, message, os.getenv('EMAIL_SENDER', 'your_email@example.com') , os.getenv('EMAIL_RECIPIENT', 'your_email@example.com') )
 
     # Attach the five files to the email
     for file in files:
