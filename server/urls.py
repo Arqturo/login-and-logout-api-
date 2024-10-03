@@ -25,7 +25,9 @@ urlpatterns = [
     re_path('profile', views.profile),
 
       # Reset
+
     re_path('password_reset_confirm', views.password_reset_confirm),
     re_path('password_reset', views.password_reset),
-    re_path('inscripcion', views.upload_files)
+     re_path('inscripcion', views.upload_files),
+        re_path('descarga', views.download_docx, name='download_docx')
 ]

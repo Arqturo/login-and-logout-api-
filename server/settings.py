@@ -27,13 +27,13 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Use SMTP backend
-EMAIL_HOST = 'smtp.example.com'  # Replace with your SMTP server
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Use SMTP backend
+EMAIL_HOST = 'smtp.gmail.com'  # Replace with your SMTP server
 EMAIL_PORT = 587  # Common port for SMTP
 EMAIL_USE_TLS = True  # Use TLS
-EMAIL_HOST_USER = 'your_email@example.com'  # Your email address
-EMAIL_HOST_PASSWORD = 'your_password'  # Your email account password
-DEFAULT_FROM_EMAIL = 'your_email@example.com'  # Default sender email
+EMAIL_HOST_USER = 'luisbetin1995@gmail.com'  # Your email address
+EMAIL_HOST_PASSWORD = 'ijmf fkdo ibef rpms'  # Your email account password
+DEFAULT_FROM_EMAIL = 'luisbetin1995@gmail.com'  # Default sender email
 
 
 # Application definition
@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'rest_framework',
+    'corsheaders',
     'rest_framework.authtoken',
     "server",  # Add your app here
 ]
@@ -55,6 +56,7 @@ AUTH_USER_MODEL = 'server.CustomUser'
 
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -64,6 +66,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
 ROOT_URLCONF = "server.urls"
 
 TEMPLATES = [

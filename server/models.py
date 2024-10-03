@@ -11,10 +11,11 @@ class CustomUser(AbstractUser):
     )
     phone_number = models.CharField(
         max_length=15,
-        unique=True,
-        null=False  
+        unique=False,
+        null=True  
     )
     email = models.EmailField(unique=True)
+    
     full_name = models.CharField(max_length=255, blank=True, null=False)
 
 
