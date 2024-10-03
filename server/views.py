@@ -13,11 +13,17 @@ from .models import CustomUser, UserCaja
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
 from django.core.mail import send_mail, EmailMessage
 from dotenv import load_dotenv
 
+
 load_dotenv()
+
+email_recipient = os.getenv('EMAIL_RECIPIENT', 'recipient1@example.com').split(',')  # Split into a list of recipients
+email_sender = os.getenv('EMAIL_SENDER', 'sender@example.com@example.com')  # Split into a list of recipients
+
+
+
 
 
 ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}  # Add 'docx' for Word files
@@ -127,7 +133,6 @@ def upload_files(request):
 
     # Validate file types for the five files
     for file_name in expected_files:
-
         file = request.FILES.getlist(file_name)
 
         if file:
@@ -136,33 +141,33 @@ def upload_files(request):
         else:
             return Response({"error": f"El archivo : {file_name} , Es requerido."}, status=status.HTTP_400_BAD_REQUEST)
 
-
     # Validate number of files
     if len(files) != len(expected_files):
         return Response({"error": "Todos los archivos son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
 
     for file in files:
-          if not allowed_file(file.name):
+        if not allowed_file(file.name):
             return Response({"error": f"Archivo '{file.name}' no es valido, debe ser PDF o JPEG."}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     # Validate planilla file type
     if planilla is None or not allowed_planilla(planilla.name) or planilla.name.rsplit('.', 1)[1].lower() != 'docx':
         return Response({"error": "La planilla debe ser en formato (DOCX)."}, status=status.HTTP_400_BAD_REQUEST)
 
     # Prepare email
-    user = request.data.get("full_name")  # Get the authenticated user
-    # full_name = f"{user.full_name}"
-   
+    #user = request.data.get("full_name")  # Get the authenticated user
     subject = f'Solicitud de Inscripcion'
     message = ''
-    email = EmailMessage(subject, message, os.getenv('EMAIL_SENDER', 'your_email@example.com') , os.getenv('EMAIL_RECIPIENT', 'your_email@example.com') )
+    email = EmailMessage(subject, message, email_sender, email_recipient)
 
-    # Attach the five files to the email
-    for file in files:
-        email.attach(file.name, file.read(), file.content_type)
 
-    # Attach the planilla file to the email
-    email.attach(planilla.name, planilla.read(), planilla.content_type)
+    # Attach the five files to the email with index
+    for index, file in enumerate(files):
+        new_filename = f"{index + 1}_{file.name}"  # Rename the file with its index
+        email.attach(new_filename, file.read(), file.content_type)
+
+    # Attach the planilla file to the email with a new name
+    planilla_new_name = f"planilla_{planilla.name}"  # Rename the planilla file
+    email.attach(planilla_new_name, planilla.read(), planilla.content_type)
 
     # Send email
     try:
@@ -170,6 +175,7 @@ def upload_files(request):
         return Response({"message": "Archivos enviados al correo"}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     
 @api_view(['GET'])
 def download_docx(request):
