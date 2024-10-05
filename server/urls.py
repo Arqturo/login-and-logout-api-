@@ -20,14 +20,15 @@ from . import views
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    re_path('login', views.login),
-    re_path('register', views.register),
-    re_path('profile', views.profile),
+    
+    path("login/", views.login, name='login'),
+    path("register/", views.register, name='register'),
+    path("profile/", views.profile, name='profile'),
 
-      # Reset
+    path("password_reset/", views.password_reset, name='password_reset'),
+    path("password_reset_confirm/", views.password_reset_confirm, name='password_reset_confirm'),
 
-    re_path('password_reset_confirm', views.password_reset_confirm),
-    re_path('password_reset', views.password_reset),
-     re_path('inscripcion', views.upload_files),
-        re_path('descarga', views.download_docx, name='download_docx')
+
+    path("inscripcion/", views.upload_files, name='upload_files'),
+    path("descarga/", views.download_docx, name='download_docx'),
 ]

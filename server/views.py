@@ -1,4 +1,4 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
 from django.http import FileResponse, Http404
 import os
@@ -6,45 +6,34 @@ from .serializers import CustomUserSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import CustomUser, UserCaja  
+from .models import CustomUser, UserCaja
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail, EmailMessage
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
-email_recipient = os.getenv('EMAIL_RECIPIENT', 'recipient1@example.com').split(',')  # Split into a list of recipients
-email_sender = os.getenv('EMAIL_SENDER', 'sender@example.com@example.com')  # Split into a list of recipients
+email_recipient = os.getenv('EMAIL_RECIPIENT', 'recipient1@example.com').split(',')
+email_sender = os.getenv('EMAIL_SENDER', 'sender@example.com')
 
-
-
-
-
-ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}  # Add 'docx' for Word files
+ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}
 ALLOWED_PLANILLA = {'docx'}
 
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def allowed_planilla(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_PLANILLA
-
+def allowed_file(filename, allowed_extensions):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 @api_view(['POST'])
 def login(request):
     user = get_object_or_404(CustomUser, email=request.data['email'])
-
+    
     if not user.check_password(request.data['password']):
         return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
 
-    token, created = Token.objects.get_or_create(user=user)
+    token, _ = Token.objects.get_or_create(user=user)
     serializer = CustomUserSerializer(instance=user)
 
     return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
@@ -52,12 +41,11 @@ def login(request):
 @api_view(['POST'])
 def register(request):
     cedula = request.data.get('cedula')
-
     user_caja = UserCaja.objects.filter(CE_TRABAJADOR=cedula).first()
+    
     if not user_caja:
         return Response({"error": "No esta registrado en la caja"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Proceed with user registration
     serializer = CustomUserSerializer(data=request.data)
 
     if serializer.is_valid():
@@ -81,11 +69,10 @@ def password_reset(request):
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # Send email with the reset link
         send_mail(
             'Password Reset Request',
             f'Use the link to reset your password: http://localhost:3000/auth/signin/password_reset/confirm?uid={uid}&token={token}',
-            'from@example.com',  # Replace with your sender email
+            email_sender,
             [email],
             fail_silently=False,
         )
@@ -123,73 +110,52 @@ def profile(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
-# @authentication_classes([TokenAuthentication])
-# @permission_classes([IsAuthenticated])
 def upload_files(request):
-    # files = request.FILES.getlist('files')  # Get the list of uploaded files
-    planilla = request.FILES.get('file6')  # Get the planilla file
+    planilla = request.FILES.get('file6')
     expected_files = ['file', 'file2', 'file3', 'file4', 'file5']
     files = []
 
-    # Validate file types for the five files
     for file_name in expected_files:
-        
         file = request.FILES.getlist(file_name)
+        if not file:
+            return Response({"error": f"File '{file_name}' is required."}, status=status.HTTP_400_BAD_REQUEST)
+        files.extend(file)
 
-        if file:
-            # files.append(file)
-            files.extend(file)
-        else:
-            return Response({"error": f"El archivo : {file_name} , Es requerido."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Validate number of files
     if len(files) != len(expected_files):
         return Response({"error": "Todos los archivos son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
 
     for file in files:
-        if not allowed_file(file.name):
+        if not allowed_file(file.name, ALLOWED_EXTENSIONS):
             return Response({"error": f"Archivo '{file.name}' no es valido, debe ser PDF o JPEG."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate planilla file type
-    if planilla is None or not allowed_planilla(planilla.name) or planilla.name.rsplit('.', 1)[1].lower() != 'docx':
-        return Response({"error": "La planilla debe ser en formato (DOCX)."}, status=status.HTTP_400_BAD_REQUEST)
+    if not planilla or not allowed_file(planilla.name, ALLOWED_PLANILLA):
+        return Response({"error": "The planilla must be in DOCX format."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Prepare email
-    #user = request.data.get("full_name")  # Get the authenticated user
-    subject = f'Solicitud de Inscripcion'
+    subject = 'Solicitud de Inscripcion'
     message = ''
     email = EmailMessage(subject, message, email_sender, email_recipient)
 
-
-    # Attach the five files to the email with index
     for index, file in enumerate(files):
-        new_filename = f"{index + 1}_{file.name}"  # Rename the file with its index
+        new_filename = f"{index + 1}_{file.name}"
         email.attach(new_filename, file.read(), file.content_type)
 
-    # Attach the planilla file to the email with a new name
-    planilla_new_name = f"planilla_{planilla.name}"  # Rename the planilla file
+    planilla_new_name = f"planilla_{planilla.name}"
     email.attach(planilla_new_name, planilla.read(), planilla.content_type)
 
-    # Send email
     try:
         email.send(fail_silently=False)
         return Response({"message": "Archivos enviados al correo"}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    
 @api_view(['GET'])
 def download_docx(request):
-    # Define la ruta del archivo
     filename = 'planilla.docx'
     file_path = os.path.join('C:\\Users\\pc\\Desktop\\proyectos\\login-and-logout-api-\\server\\documento', filename)
     
-    # Verifica si el archivo existe
     if not os.path.exists(file_path):
         raise Http404("El archivo no existe.")
     
-    # Devuelve el archivo como respuesta
-    with open(file_path, 'rb') as doc_file:
-        response = FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response   
+    response = FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
