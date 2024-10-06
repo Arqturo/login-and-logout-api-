@@ -31,4 +31,7 @@ urlpatterns = [
 
     path("inscripcion/", views.upload_files, name='upload_files'),
     path("descarga/", views.download_docx, name='download_docx'),
+
+    path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
+
 ]

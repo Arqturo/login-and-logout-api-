@@ -57,7 +57,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
-    "server",  # Add your app here
+    "server",  
 ]
 
 AUTH_USER_MODEL = 'server.CustomUser'
@@ -107,6 +107,11 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # Default
+    'server.backends.PageMasterBackend',        # Your custom backend
+]
 
 
 # Password validation

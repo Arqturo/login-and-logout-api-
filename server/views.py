@@ -2,18 +2,19 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from django.http import FileResponse, Http404
 import os
-from .serializers import CustomUserSerializer
+from .serializers import CustomUserSerializer, PageMasterSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import CustomUser, UserCaja
+from .models import CustomUser, UserCaja, PageMaster, CustomToken
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail, EmailMessage
 from dotenv import load_dotenv
+from django.contrib.auth import get_user_model
 
 load_dotenv()
 
@@ -159,3 +160,35 @@ def download_docx(request):
     response = FileResponse(open(file_path, 'rb'), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+# PageMaster
+
+@api_view(['POST'])
+def pagemaster_login(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+
+    if not username or not password:
+        return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    User = get_user_model() 
+
+    try:
+        user = User.objects.get(username=username)
+
+        if not user.check_password(password):
+            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+
+        token, created = CustomToken.objects.get_or_create(user=user)
+
+        # Serialize user data
+        serializer = PageMasterSerializer(instance=user)
+
+        return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
+
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Exception: {e}")  # Log the error to the console
+        return Response({"error": "An error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
