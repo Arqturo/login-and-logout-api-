@@ -18,6 +18,12 @@ from django.contrib import admin
 from django.urls import path, re_path
 from . import views
 
+from django.contrib import admin
+from django.urls import path, include
+from . import views
+
+# Create a router and register the PostViewSet
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     
@@ -28,10 +34,12 @@ urlpatterns = [
     path("password_reset/", views.password_reset, name='password_reset'),
     path("password_reset_confirm/", views.password_reset_confirm, name='password_reset_confirm'),
 
-
     path("inscripcion/", views.upload_files, name='upload_files'),
     path("descarga/", views.download_docx, name='download_docx'),
 
     path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
+    
+    path('post/', views.post_list_create, name='post_list_create'),
+    path('post/<int:post_id>/', views.post_detail, name='post_detail'),
 
 ]

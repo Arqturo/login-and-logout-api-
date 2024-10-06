@@ -3,6 +3,8 @@ from django.db import models
 from django.core.validators import RegexValidator
 from django.conf import settings
 from rest_framework.authtoken.models import Token as DefaultToken
+from django.contrib.auth import get_user_model
+
 
 
 
@@ -86,3 +88,13 @@ class CustomToken(models.Model):
         import binascii
         import os
         return binascii.hexlify(os.urandom(20)).decode()
+
+
+class Post(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField()  # Use a rich text field if needed
+    image = models.TextField()  # Store image as a string
+    author = models.CharField(max_length=255)  # Author as a string
+
+    def __str__(self):
+        return self.title

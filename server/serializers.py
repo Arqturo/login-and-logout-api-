@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, PageMaster
+from .models import CustomUser, PageMaster, Post
 
 class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,3 +38,8 @@ class PageMasterPasswordResetConfirmSerializer(serializers.Serializer):
     uid = serializers.CharField(required=True)
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, write_only=True)
+
+class PostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'title', 'description', 'image', 'author']

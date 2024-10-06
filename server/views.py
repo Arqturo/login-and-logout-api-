@@ -2,19 +2,24 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from django.http import FileResponse, Http404
 import os
-from .serializers import CustomUserSerializer, PageMasterSerializer
+from .serializers import CustomUserSerializer, PageMasterSerializer, PostSerializer
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import CustomUser, UserCaja, PageMaster, CustomToken
+from .models import CustomUser, UserCaja, PageMaster, CustomToken, Post
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail, EmailMessage
 from dotenv import load_dotenv
 from django.contrib.auth import get_user_model
+from rest_framework import viewsets, permissions
+from .authentication import PageMasterTokenAuthentication
+
+
+from rest_framework.exceptions import PermissionDenied
 
 load_dotenv()
 
@@ -192,3 +197,43 @@ def pagemaster_login(request):
     except Exception as e:
         print(f"Exception: {e}")  # Log the error to the console
         return Response({"error": "An error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+@api_view(['GET', 'POST'])
+@authentication_classes([PageMasterTokenAuthentication])
+def post_list_create(request):
+    # GET: Everyone can see the posts
+    if request.method == 'GET':
+        posts = Post.objects.all()
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data)
+
+    # POST: Only PageMasters can create posts
+    if request.method == 'POST':
+        serializer = PostSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@authentication_classes([PageMasterTokenAuthentication])
+@permission_classes([IsAuthenticated])
+def post_detail(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    if request.method == 'GET':
+        serializer = PostSerializer(post)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = PostSerializer(post, data=request.data, partial=(request.method == 'PATCH'))
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        post.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
