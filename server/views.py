@@ -175,7 +175,7 @@ def pagemaster_login(request):
     password = request.data.get('password')
 
     if not username or not password:
-        return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Usuario y contraseña son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
 
     User = get_user_model() 
 
@@ -183,7 +183,7 @@ def pagemaster_login(request):
         user = User.objects.get(username=username)
 
         if not user.check_password(password):
-            return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
         token, created = CustomToken.objects.get_or_create(user=user)
 
@@ -193,10 +193,10 @@ def pagemaster_login(request):
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
 
     except User.DoesNotExist:
-        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"Exception: {e}")  # Log the error to the console
-        return Response({"error": "An error occurred. Please try again."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "Ah ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
