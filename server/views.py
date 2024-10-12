@@ -20,6 +20,8 @@ from rest_framework.permissions import AllowAny
 import logging
 from .permissions import IsPageMaster, IsCustomUser 
 from django.utils import timezone
+from rest_framework.pagination import PageNumberPagination
+
 
 
 
@@ -267,3 +269,29 @@ def ping(request):
     token.save()  
     
     return Response({"message": "Pong!", "token_expiration_updated": True}, status=status.HTTP_200_OK)
+
+
+class CustomUserPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+@api_view(['GET'])
+@permission_classes([IsPageMaster])
+def search_custom_users(request):
+    cedula = request.query_params.get('cedula', None)
+    full_name = request.query_params.get('full_name', None)
+
+    filters = {}
+    if cedula:
+        filters['cedula'] = cedula
+    if full_name:
+        filters['full_name__icontains'] = full_name
+
+    custom_users = CustomUser.objects.filter(**filters)
+    
+    paginator = CustomUserPagination()
+    paginated_users = paginator.paginate_queryset(custom_users, request)
+    
+    serializer = CustomUserSerializer(paginated_users, many=True)
+    return paginator.get_paginated_response(serializer.data)

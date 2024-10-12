@@ -38,10 +38,13 @@ urlpatterns = [
     path("descarga/", views.download_docx, name='download_docx'),
 
     path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
+    path('pagemaster/search_custom_users/', views.search_custom_users, name='search_custom_users'),
+
     
     path('post/', views.post_list, name='post_list'),
     path('post/create/', views.post_create, name='post_create'),  
     path('post/<int:post_id>/', views.post_detail, name='post_detail'),
+    
     path('ping/', views.ping, name='ping')
 
 ]
