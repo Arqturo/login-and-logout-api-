@@ -18,6 +18,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions
 from rest_framework.permissions import AllowAny
 import logging
+from .permissions import IsPageMaster, IsCustomUser  # Importing custom permissions
+
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +129,7 @@ def password_reset_confirm(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsCustomUser])
 def profile(request):
     serializer = CustomUserSerializer(instance=request.user)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -222,7 +224,7 @@ def post_list(request):
     return Response(serializer.data)
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPageMaster])
 def post_create(request):
     logger.debug(f"Incoming data: {request.data}")  
     serializer = PostSerializer(data=request.data)
@@ -235,7 +237,7 @@ def post_create(request):
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsPageMaster])
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
