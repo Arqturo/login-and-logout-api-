@@ -17,9 +17,14 @@ class TokenExpirationMiddleware:
             if len(auth) == 2 and auth[0] == 'Token':
                 try:
                     token = Token.objects.get(key=auth[1])
+                    
                     if timezone.now() - token.created > timedelta(seconds=token_expiration_seconds):
                         token.delete()  
                         return JsonResponse({"error": "Token has expired."}, status=401)
+                    
+                    token.created = timezone.now()
+                    token.save()
+                    
                 except Token.DoesNotExist:
                     return JsonResponse({"error": "Invalid token."}, status=401)
 
