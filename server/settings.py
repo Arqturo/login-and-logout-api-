@@ -73,8 +73,10 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "server.middleware.TokenExpirationMiddleware"
 ]
 
+TOKEN_EXPIRATION_SECONDS = os.getenv('TOKEN_EXPIRATION_SECONDS', 10) 
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
 
 ROOT_URLCONF = "server.urls"

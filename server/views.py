@@ -37,15 +37,29 @@ def allowed_file(filename, allowed_extensions):
 
 @api_view(['POST'])
 def login(request):
-    user = get_object_or_404(CustomUser, email=request.data['email'])
-    
-    if not user.check_password(request.data['password']):
-        return Response({"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST)
+    email = request.data.get('email')
+    password = request.data.get('password')
 
-    token, _ = Token.objects.get_or_create(user=user)
-    serializer = CustomUserSerializer(instance=user)
+    if not email or not password:
+        return Response({"error": "Email y contraseña son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
+    try:
+        user = CustomUser.objects.get(email=email)
+
+        if not user.check_password(password):
+            return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
+
+        token, created = Token.objects.get_or_create(user=user)
+        serializer = CustomUserSerializer(instance=user)
+
+        return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
+
+    except CustomUser.DoesNotExist:
+        return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(f"Exception: {e}")  # Consider using logging instead of print
+        return Response({"error": "Ha ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 def register(request):
@@ -188,9 +202,7 @@ def pagemaster_login(request):
         if not user.check_password(password):
             return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Use the standard Token model instead of CustomToken
         token, created = Token.objects.get_or_create(user=user)
-
         serializer = PageMasterSerializer(instance=user)
 
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
