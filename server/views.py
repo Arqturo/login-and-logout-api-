@@ -8,7 +8,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
-from .models import CustomUser, UserCaja, PageMaster, CustomToken, Post
+from .models import CustomUser, UserCaja, PageMaster, Post
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
@@ -188,9 +188,9 @@ def pagemaster_login(request):
         if not user.check_password(password):
             return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        token, created = CustomToken.objects.get_or_create(user=user)
+        # Use the standard Token model instead of CustomToken
+        token, created = Token.objects.get_or_create(user=user)
 
-        
         serializer = PageMasterSerializer(instance=user)
 
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
@@ -200,7 +200,6 @@ def pagemaster_login(request):
     except Exception as e:
         print(f"Exception: {e}") 
         return Response({"error": "Ah ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 @api_view(['GET'])
