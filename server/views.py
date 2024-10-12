@@ -18,7 +18,9 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, permissions
 from rest_framework.permissions import AllowAny
 import logging
-from .permissions import IsPageMaster, IsCustomUser  # Importing custom permissions
+from .permissions import IsPageMaster, IsCustomUser 
+from django.utils import timezone
+
 
 
 logger = logging.getLogger(__name__)
@@ -255,3 +257,13 @@ def post_detail(request, post_id):
     elif request.method == 'DELETE':
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def ping(request):
+    token = Token.objects.get(user=request.user)
+    token.created = timezone.now()  
+    token.save()  
+    
+    return Response({"message": "Pong!", "token_expiration_updated": True}, status=status.HTTP_200_OK)
