@@ -39,7 +39,8 @@ urlpatterns = [
 
     path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
     
-    path('post/', views.post_list_create, name='post_list_create'),
+    path('post/', views.post_list, name='post_list'),  # Changed to point to post_list
+    path('post/create/', views.post_create, name='post_create'),  # New endpoint for creating a post
     path('post/<int:post_id>/', views.post_detail, name='post_detail'),
 
 ]
