@@ -8,6 +8,10 @@ from django.contrib.auth import get_user_model
 
 
 
+from django.contrib.auth.models import AbstractUser, Group, Permission
+from django.core.validators import RegexValidator
+from django.db import models
+
 class CustomUser(AbstractUser):
     cedula = models.CharField(
         max_length=15,
@@ -21,9 +25,7 @@ class CustomUser(AbstractUser):
         null=True  
     )
     email = models.EmailField(unique=True)
-    
     full_name = models.CharField(max_length=255, blank=True, null=False)
-
 
     def save(self, *args, **kwargs):
         if not self.email:
@@ -34,6 +36,16 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.cedula or self.username
+
+    def get_roles(self):
+        roles = []
+        # Check if user is in any groups
+        if self.groups.exists():
+            roles.extend([group.name for group in self.groups.all()])
+        # Optionally check for specific permissions and add corresponding roles
+        if self.has_perm('server.add_customuser'):
+            roles.append('CustomUser')
+        return roles
 
  # Caja
 
