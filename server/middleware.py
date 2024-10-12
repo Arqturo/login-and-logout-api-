@@ -10,7 +10,7 @@ class TokenExpirationMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        token_expiration_seconds = int(settings.TOKEN_EXPIRATION_SECONDS)
+        token_expiration_seconds = int(settings.TOKEN_EXPIRE_TIME)
 
         if 'HTTP_AUTHORIZATION' in request.META:
             auth = request.META['HTTP_AUTHORIZATION'].split()

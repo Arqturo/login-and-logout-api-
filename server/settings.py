@@ -76,7 +76,7 @@ MIDDLEWARE = [
     "server.middleware.TokenExpirationMiddleware"
 ]
 
-TOKEN_EXPIRATION_SECONDS = os.getenv('TOKEN_EXPIRE_TIME', 600) 
+TOKEN_EXPIRE_TIME = os.getenv('TOKEN_EXPIRE_TIME', 600) 
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
 
 ROOT_URLCONF = "server.urls"
