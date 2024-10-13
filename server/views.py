@@ -138,6 +138,22 @@ def profile(request):
     serializer = CustomUserSerializer(instance=request.user)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def update_own_profile(request):
+
+    custom_user = request.user  # Get the authenticated use
+    
+    
+    serializer = CustomUserSerializer(custom_user, data=request.data, partial=True)
+    
+    if serializer.is_valid():
+        serializer.save()  # Save the updated user details
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(['POST'])
 def upload_files(request):
     planilla = request.FILES.get('file6')
@@ -289,9 +305,29 @@ def search_custom_users(request):
         filters['full_name__icontains'] = full_name
 
     custom_users = CustomUser.objects.filter(**filters)
-    
+
+    # Paginate the results
     paginator = CustomUserPagination()
     paginated_users = paginator.paginate_queryset(custom_users, request)
-    
+
     serializer = CustomUserSerializer(paginated_users, many=True)
     return paginator.get_paginated_response(serializer.data)
+
+@api_view(['PUT'])
+@permission_classes([IsPageMaster])
+def update_custom_user(request, custom_user_id):
+    """
+    Allows a PageMaster to update the properties of a CustomUser given their ID.
+    """
+    # Get the CustomUser object or return 404 if not found
+    custom_user = get_object_or_404(CustomUser, id=custom_user_id)
+    
+    # Deserialize the incoming request data
+    serializer = CustomUserSerializer(custom_user, data=request.data, partial=True)
+    
+    if serializer.is_valid():
+        serializer.save()  # Save the updated user details
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

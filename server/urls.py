@@ -30,6 +30,8 @@ urlpatterns = [
     path("login/", views.login, name='login'),
     path("register/", views.register, name='register'),
     path("profile/", views.profile, name='profile'),
+    path('profile/edit/', views.update_own_profile, name='update_own_profile'),
+
 
     path("password_reset/", views.password_reset, name='password_reset'),
     path("password_reset_confirm/", views.password_reset_confirm, name='password_reset_confirm'),
@@ -38,7 +40,9 @@ urlpatterns = [
     path("descarga/", views.download_docx, name='download_docx'),
 
     path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
-    path('pagemaster/search_custom_users/', views.search_custom_users, name='search_custom_users'),
+    path('pagemaster/search-custom-users/', views.search_custom_users, name='search_custom_users'),
+    path('pagemaster/update-custom-user/<int:custom_user_id>/', views.update_custom_user, name='update_custom_user'),
+
 
     
     path('post/', views.post_list, name='post_list'),
