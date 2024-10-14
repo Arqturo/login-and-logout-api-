@@ -306,12 +306,20 @@ def search_custom_users(request):
 
     custom_users = CustomUser.objects.filter(**filters)
 
-    # Paginate the results
+    total_custom_users = custom_users.count()
+
     paginator = CustomUserPagination()
     paginated_users = paginator.paginate_queryset(custom_users, request)
 
     serializer = CustomUserSerializer(paginated_users, many=True)
-    return paginator.get_paginated_response(serializer.data)
+
+    response_data = {
+        'total_custom_users': total_custom_users,
+        'total_pages': paginator.page.paginator.num_pages,
+        'results': serializer.data,
+    }
+
+    return Response(response_data, status=status.HTTP_200_OK)
 
 @api_view(['PUT'])
 @permission_classes([IsPageMaster])
