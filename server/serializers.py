@@ -65,7 +65,9 @@ class PageMasterPasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField(required=True)
     new_password = serializers.CharField(required=True, write_only=True)
 
+
 class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
-        fields = ['id', 'title', 'description', 'image', 'author']
+        fields = ['id', 'title', 'description', 'image', 'author', 'created_at', 'updated_at']
+

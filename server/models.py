@@ -104,9 +104,11 @@ class CustomToken(models.Model):
 
 class Post(models.Model):
     title = models.CharField(max_length=255)
-    description = models.TextField()  # Use a rich text field if needed
-    image = models.TextField()  # Store image as a string
-    author = models.CharField(max_length=255)  # Author as a string
+    description = models.TextField()  
+    image = models.TextField() 
+    author = models.CharField(max_length=255)  
+    created_at = models.DateTimeField(auto_now_add=True)  
+    updated_at = models.DateTimeField(auto_now=True) 
 
     def __str__(self):
         return self.title
