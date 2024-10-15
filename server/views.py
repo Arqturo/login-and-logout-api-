@@ -236,12 +236,30 @@ def pagemaster_login(request):
         return Response({"error": "Ah ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class PostPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny]) 
 def post_list(request):
     posts = Post.objects.all()
-    serializer = PostSerializer(posts, many=True)
-    return Response(serializer.data)
+    
+    paginator = PostPagination()
+    paginated_posts = paginator.paginate_queryset(posts, request)
+
+    serializer = PostSerializer(paginated_posts, many=True)
+
+    response_data = {
+        'total_posts': posts.count(),
+        'total_pages': paginator.page.paginator.num_pages,
+        'results': serializer.data,
+    }
+
+    return paginator.get_paginated_response(response_data)
+
 
 @api_view(['POST'])
 @permission_classes([IsPageMaster])
