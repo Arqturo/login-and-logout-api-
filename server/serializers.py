@@ -67,6 +67,10 @@ class PageMasterPasswordResetConfirmSerializer(serializers.Serializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(format="%d/%m/%Y")
+    updated_at = serializers.DateTimeField(format="%d/%m/%Y")
+
+
     class Meta:
         model = Post
         fields = ['id', 'title', 'description', 'image', 'author', 'created_at', 'updated_at']
