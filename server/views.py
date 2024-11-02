@@ -282,16 +282,19 @@ def post_create(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsPageMaster])
-def post_detail(request, post_id):
+@api_view(['GET'])
+@permission_classes([AllowAny])  # No authentication required for GET
+def post_detail_get(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    serializer = PostSerializer(post)
+    return Response(serializer.data)
+
+@api_view(['PUT', 'PATCH', 'DELETE'])
+@permission_classes([IsPageMaster])  # Authentication required for these methods
+def post_detail_modify(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
-    if request.method == 'GET':
-        serializer = PostSerializer(post)
-        return Response(serializer.data)
-
-    elif request.method in ['PUT', 'PATCH']:
+    if request.method in ['PUT', 'PATCH']:
         serializer = PostSerializer(post, data=request.data, partial=(request.method == 'PATCH'))
         if serializer.is_valid():
             serializer.save()
@@ -301,6 +304,7 @@ def post_detail(request, post_id):
     elif request.method == 'DELETE':
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])

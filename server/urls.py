@@ -47,7 +47,8 @@ urlpatterns = [
     
     path('post/', views.post_list, name='post_list'),
     path('post/create/', views.post_create, name='post_create'),  
-    path('post/<int:post_id>/', views.post_detail, name='post_detail'),
+    path('post/<int:post_id>/', views.post_detail_get, name='post_detail_get'),  # GET without authentication
+    path('post/<int:post_id>/modify/', views.post_detail_modify, name='post_detail_modify'),  # PUT, PATCH, DELETE with authentication
     
     path('ping/', views.ping, name='ping')
 
