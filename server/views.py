@@ -324,7 +324,7 @@ def search_custom_users(request):
         filters['full_name__icontains'] = full_name
 
 
-    custom_users = CustomUser.objects.filter(**filters).order_by('-updated_at')
+    custom_users = CustomUser.objects.filter(**filters)
 
 
     total_custom_users = custom_users.count()

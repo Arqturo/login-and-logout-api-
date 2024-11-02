@@ -105,7 +105,7 @@ class CustomToken(models.Model):
 class Post(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()  
-    content = models.TextField()  # New content field
+    content = models.TextField()
     image = models.TextField() 
     author = models.CharField(max_length=255)  
     created_at = models.DateTimeField(auto_now_add=True)  
