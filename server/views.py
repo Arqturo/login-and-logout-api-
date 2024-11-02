@@ -237,15 +237,15 @@ def pagemaster_login(request):
 
 
 class PostPagination(PageNumberPagination):
-    page_size = 10
+    page_size = 9
     page_size_query_param = 'page_size'
     max_page_size = 100
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny]) 
+@permission_classes([AllowAny])
 def post_list(request):
-    posts = Post.objects.all()
+    posts = Post.objects.all().order_by('-updated_at')
     
     paginator = PostPagination()
     paginated_posts = paginator.paginate_queryset(posts, request)
@@ -322,15 +322,20 @@ def search_custom_users(request):
     if full_name:
         filters['full_name__icontains'] = full_name
 
-    custom_users = CustomUser.objects.filter(**filters)
+
+    custom_users = CustomUser.objects.filter(**filters).order_by('-updated_at')
+
 
     total_custom_users = custom_users.count()
+
 
     paginator = CustomUserPagination()
     paginated_users = paginator.paginate_queryset(custom_users, request)
 
+
     serializer = CustomUserSerializer(paginated_users, many=True)
 
+    # Prepare response data
     response_data = {
         'total_custom_users': total_custom_users,
         'total_pages': paginator.page.paginator.num_pages,
@@ -338,6 +343,7 @@ def search_custom_users(request):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
+
 
 @api_view(['PUT'])
 @permission_classes([IsPageMaster])

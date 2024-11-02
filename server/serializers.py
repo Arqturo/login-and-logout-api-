@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import CustomUser, PageMaster, Post
+from rest_framework import serializers
+from django.utils import timezone
 
 class CustomUserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
@@ -66,12 +68,23 @@ class PageMasterPasswordResetConfirmSerializer(serializers.Serializer):
     new_password = serializers.CharField(required=True, write_only=True)
 
 
-class PostSerializer(serializers.ModelSerializer):
-    created_at = serializers.DateTimeField(format="%d/%m/%Y")
-    updated_at = serializers.DateTimeField(format="%d/%m/%Y")
 
+
+class PostSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(format="%d/%m/%Y", read_only=True)
+    updated_at = serializers.DateTimeField(format="%d/%m/%Y", read_only=True)
 
     class Meta:
         model = Post
-        fields = ['id', 'title', 'description', 'image', 'author', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'description', 'content', 'image', 'author', 'created_at', 'updated_at']  # Added 'content'
 
+    def create(self, validated_data):
+        # Set created_at and updated_at to the current date and time
+        validated_data['created_at'] = timezone.now()
+        validated_data['updated_at'] = timezone.now()
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Update only the updated_at timestamp on update
+        validated_data['updated_at'] = timezone.now()
+        return super().update(instance, validated_data)
