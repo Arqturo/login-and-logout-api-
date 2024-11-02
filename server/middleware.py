@@ -20,13 +20,13 @@ class TokenExpirationMiddleware:
                     
                     if timezone.now() - token.created > timedelta(seconds=token_expiration_seconds):
                         token.delete()  
-                        return JsonResponse({"error": "Token has expired."}, status=401)
+                        return JsonResponse({"error": "Token expirado."}, status=401)
                     
                     token.created = timezone.now()
                     token.save()
                     
                 except Token.DoesNotExist:
-                    return JsonResponse({"error": "Invalid token."}, status=401)
+                    return JsonResponse({"error": "Token Invalido."}, status=401)
 
         response = self.get_response(request)
         return response

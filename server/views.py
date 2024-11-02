@@ -56,7 +56,9 @@ def login(request):
         if not user.check_password(password):
             return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        token, created = Token.objects.get_or_create(user=user)
+        Token.objects.filter(user=user).delete()
+
+        token = Token.objects.create(user=user)
         serializer = CustomUserSerializer(instance=user)
 
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
@@ -64,8 +66,9 @@ def login(request):
     except CustomUser.DoesNotExist:
         return Response({"error": "Usuario no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"Exception: {e}")  # Consider using logging instead of print
+        print(f"Exception: {e}")
         return Response({"error": "Ha ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @api_view(['POST'])
@@ -225,7 +228,10 @@ def pagemaster_login(request):
         if not user.check_password(password):
             return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
-        token, created = Token.objects.get_or_create(user=user)
+
+        Token.objects.filter(user=user).delete()
+
+        token = Token.objects.create(user=user)
         serializer = PageMasterSerializer(instance=user)
 
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
@@ -235,6 +241,7 @@ def pagemaster_login(request):
     except Exception as e:
         print(f"Exception: {e}") 
         return Response({"error": "Ah ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class PostPagination(PageNumberPagination):
