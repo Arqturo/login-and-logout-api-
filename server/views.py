@@ -34,6 +34,7 @@ load_dotenv()
 
 email_recipient = os.getenv('EMAIL_RECIPIENT', 'recipient1@example.com').split(',')
 email_sender = os.getenv('EMAIL_SENDER', 'sender@example.com')
+front = os.getenv('FRONT_URL', 'http://localhost:3000')
 
 ALLOWED_EXTENSIONS = {'pdf', 'jpeg', 'jpg'}
 ALLOWED_PLANILLA = {'docx'}
@@ -100,7 +101,7 @@ def password_reset(request):
         
         send_mail(
             'Password Reset Request',
-            f'Use the link to reset your password: http://localhost:3000/auth/signin/password_reset/confirm?uid={uid}&token={token}',
+            f'Use the link to reset your password: {front}/auth/signin/password_reset/confirm?uid={uid}&token={token}',
             email_sender,
             [email],
             fail_silently=False,
