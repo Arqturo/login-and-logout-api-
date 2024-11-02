@@ -251,7 +251,6 @@ class PostPagination(PageNumberPagination):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
 def post_list(request):
     posts = Post.objects.all().order_by('-updated_at')
     
@@ -283,7 +282,6 @@ def post_create(request):
 
 
 @api_view(['GET'])
-@permission_classes([AllowAny])  # No authentication required for GET
 def post_detail_get(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     serializer = PostSerializer(post)
