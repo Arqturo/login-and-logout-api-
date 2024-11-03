@@ -159,10 +159,12 @@ def profile(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def update_own_profile(request):
+    custom_user = request.user  # Get the authenticated user
+    
+    # Check if 'cedula' is in the request data and if so, remove it
+    if 'cedula' in request.data:
+        return Response({"error": "No se puede cambiar la cedula."}, status=status.HTTP_400_BAD_REQUEST)
 
-    custom_user = request.user  # Get the authenticated use
-    
-    
     serializer = CustomUserSerializer(custom_user, data=request.data, partial=True)
     
     if serializer.is_valid():
