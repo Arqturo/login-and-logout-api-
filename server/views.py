@@ -493,10 +493,10 @@ def fianza(request):
                REPLACE(CONVERT(NVARCHAR, dbo.fn_datefromclarion([FECFIN]), 106), ' ', '/') AS HASTA
         FROM [dbo].[FianzasActivas] V
         INNER JOIN PRESTAMO P ON V.CODPTMO = P.CODPTMO
-        WHERE V.CEDSOC = %s
+        WHERE V.CEDFIA = %s
     """
     with connections['sqlserver'].cursor() as cursor:
-        cursor.execute(query, [cedula])
+        cursor.execute(query, [cedula])  # Use cedula in the WHERE clause
         rows = cursor.fetchall()
 
     # Format the results
