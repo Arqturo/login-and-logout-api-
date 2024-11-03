@@ -21,6 +21,8 @@ import logging
 from .permissions import IsPageMaster, IsCustomUser 
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
+from django.db import connections
+
 
 
 
@@ -373,3 +375,67 @@ def update_custom_user(request, custom_user_id):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+# SQL REQUESTS  
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def user_loans(request):
+    cedula = request.user.cedula  
+
+    query = """
+    SELECT
+        S.SERIAL,
+        S.CODPTMO,
+        P.DESCRIP,
+        S.FECOTORG,
+        S.FECPPAG,
+        S.FECULTPAG,
+        S.FECULTCUO,
+        S.NROCUOTA,
+        S.NCP,
+        S.MONTOCUOTA,
+        S.MONTO,
+        S.TASA,
+        S.SALDO,
+        S.STATUS,
+        S.CUOTA1,
+        S.SALDO1,
+        S.CUOTA2,
+        S.SALDO2
+    FROM PRESOCIO S
+    INNER JOIN PRESTAMO P ON P.CODPTMO = S.CODPTMO
+    WHERE S.CEDSOC = %s AND S.SALDO <> 0
+    """
+
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])
+        rows = cursor.fetchall()
+
+    # Convert rows to a list of dictionaries for easier serialization
+    results = [
+        {
+            'SERIAL': row[0],
+            'CODPTMO': row[1],
+            'DESCRIP': row[2],
+            'FECOTORG': row[3],
+            'FECPPAG': row[4],
+            'FECULTPAG': row[5],
+            'FECULTCUO': row[6],
+            'NROCUOTA': row[7],
+            'NCP': row[8],
+            'MONTOCUOTA': row[9],
+            'MONTO': row[10],
+            'TASA': row[11],
+            'SALDO': row[12],
+            'STATUS': row[13],
+            'CUOTA1': row[14],
+            'SALDO1': row[15],
+            'CUOTA2': row[16],
+            'SALDO2': row[17],
+        }
+        for row in rows
+    ]
+
+    return Response(results, status=status.HTTP_200_OK)
