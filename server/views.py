@@ -22,6 +22,7 @@ from .permissions import IsPageMaster, IsCustomUser
 from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
 from django.db import connections
+from django.contrib.auth.models import Group
 
 
 
@@ -58,11 +59,16 @@ def login(request):
         if not user.check_password(password):
             return Response({"error": "Contraseña invalida"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Ensure the user has the CustomUser role
+        custom_user_group, _ = Group.objects.get_or_create(name='CustomUser')
+        if custom_user_group not in user.groups.all():
+            user.groups.add(custom_user_group)
+
+        # Token management
         Token.objects.filter(user=user).delete()
-
         token = Token.objects.create(user=user)
-        serializer = CustomUserSerializer(instance=user)
 
+        serializer = CustomUserSerializer(instance=user)
         return Response({"token": token.key, "user": serializer.data}, status=status.HTTP_200_OK)
 
     except CustomUser.DoesNotExist:
@@ -70,6 +76,7 @@ def login(request):
     except Exception as e:
         print(f"Exception: {e}")
         return Response({"error": "Ha ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 
@@ -87,6 +94,10 @@ def register(request):
         user = serializer.save()
         user.set_password(request.data['password'])
         user.save()
+
+        # Assign user to the CustomUser group
+        custom_user_group, _ = Group.objects.get_or_create(name='CustomUser')
+        user.groups.add(custom_user_group)
 
         token = Token.objects.create(user=user)
         return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_201_CREATED)
@@ -439,3 +450,67 @@ def user_loans(request):
     ]
 
     return Response(results, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def haberes(request):
+    cedula = request.user.cedula  # Get the user's cedula from the authenticated user
+
+    query = """
+        SELECT S.CODAHO, A.DESCRIP, S.SALDOAHO
+        FROM AHOSOCIO S
+        INNER JOIN AHORROS A ON A.CODAHO = S.CODAHO
+        WHERE S.CEDSOC = %s
+    """
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])
+        rows = cursor.fetchall()
+
+    # Format the results
+    result = [
+        {
+            "CODAHO": row[0],
+            "DESCRIP": row[1],
+            "SALDOAHO": row[2]
+        }
+        for row in rows
+    ]
+
+    return Response(result, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def fianza(request):
+    cedula = request.user.cedula  # Get the user's cedula from the authenticated user
+
+    query = """
+        SELECT [CEDFIA], [CEDSOC], dbo.fn_nombre([CEDSOC]) AS NOMBRESOCIO,
+               [SALDO], P.DESCRIP,
+               REPLACE(CONVERT(NVARCHAR, dbo.fn_datefromclarion([FECINI]), 106), ' ', '/') AS DESDE,
+               REPLACE(CONVERT(NVARCHAR, dbo.fn_datefromclarion([FECFIN]), 106), ' ', '/') AS HASTA
+        FROM [dbo].[FianzasActivas] V
+        INNER JOIN PRESTAMO P ON V.CODPTMO = P.CODPTMO
+        WHERE V.CEDSOC = %s
+    """
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])
+        rows = cursor.fetchall()
+
+    # Format the results
+    result = [
+        {
+            "CEDFIA": row[0],
+            "CEDSOC": row[1],
+            "NOMBRESOCIO": row[2],
+            "SALDO": row[3],
+            "DESCRIP": row[4],
+            "DESDE": row[5],
+            "HASTA": row[6]
+        }
+        for row in rows
+    ]
+
+    return Response(result, status=status.HTTP_200_OK)
