@@ -460,27 +460,56 @@ def user_loans(request):
 def haberes(request):
     cedula = request.user.cedula  # Get the user's cedula from the authenticated user
 
+    # Updated query with correct calculation for Total_Agravados
     query = """
-        SELECT S.CODAHO, A.DESCRIP, S.SALDOAHO
-        FROM AHOSOCIO S
-        INNER JOIN AHORROS A ON A.CODAHO = S.CODAHO
-        WHERE S.CEDSOC = %s
+        SELECT 
+            -- Correctly calculate Total_Agravados by summing SALDO for the specified CEDSOC
+            (SELECT SUM(SALDO) 
+             FROM PRESOCIO 
+             WHERE CEDSOC = %s AND GrabaAhorro = 1
+             GROUP BY CEDSOC) AS Total_Agravados,
+             
+            -- Rest of the calculations using join with AHOSOCIO
+            SUM(A.SALDOAHO - A.SALDOBLOQ) AS Disponibilidad,
+            SUM(A.SALDOAHO - A.SALDOBLOQ) / 2 AS Porcentaje_Disponibilidad,
+            [oca20].[dbo].[fn_Embargos](%s) AS Total_Embargos,
+            [oca20].[dbo].[fn_Fianzas](%s) AS Total_Fianzas,
+            (SUM(A.SALDOAHO - A.SALDOBLOQ) / 2) - [oca20].[dbo].[fn_Embargos](%s) AS Saldo_Final
+        FROM 
+            AHOSOCIO A
+        JOIN 
+            PRESOCIO P ON P.CEDSOC = A.CEDSOC
+        WHERE 
+            P.CEDSOC = %s 
+            AND P.GrabaAhorro = 1
+            AND A.CODAHO IN (98, 99)
+        GROUP BY 
+            P.CEDSOC
     """
-    with connections['sqlserver'].cursor() as cursor:
-        cursor.execute(query, [cedula])
-        rows = cursor.fetchall()
 
-    # Format the results
-    result = [
-        {
-            "CODAHO": row[0],
-            "DESCRIP": row[1],
-            "SALDOAHO": row[2]
-        }
-        for row in rows
-    ]
+    # Execute the query
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula, cedula, cedula, cedula, cedula])
+        row = cursor.fetchone()
+
+    # Format the result
+    if row:
+        result = [
+            {
+                "Total_Agravados": row[0] if row[0] is not None else 0,  # Ensure no null value
+                "Disponibilidad": row[1] if row[1] is not None else 0,  # Ensure no null value
+                "50_Porcentaje_Disponibilidad": row[2] if row[2] is not None else 0,  # Ensure no null value
+                "Total_Embargos": row[3] if row[3] is not None else 0,  # Ensure no null value
+                "Total_Fianzas": row[4] if row[4] is not None else 0,  # Ensure no null value
+                "Saldo_Final": row[5] if row[5] is not None else 0  # Ensure no null value
+            }
+        ]
+    else:
+        result = []
 
     return Response(result, status=status.HTTP_200_OK)
+
+
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
