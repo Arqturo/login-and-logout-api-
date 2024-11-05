@@ -123,8 +123,8 @@ DATABASES = {
         'NAME': 'oca20',
         'USER': 'CAPROLUZ2024',
         'PASSWORD': 'CAPRO789456luz',
-        'HOST': '206.62.173.45',
-        'PORT': '1433',
+        'HOST': 'localhost',
+        #'PORT': '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 17 for SQL Server',
             'Trusted_Connection': 'yes',
