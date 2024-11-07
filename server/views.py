@@ -454,42 +454,75 @@ def user_loans(request):
     return Response(results, status=status.HTTP_200_OK)
 
 
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser  # Assuming you have this permission class
+from django.db import connections
+
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser  # Assuming you have this permission class
+from django.db import connections
+
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def haberes(request):
     cedula = request.user.cedula  # Get the user's cedula from the authenticated user
 
-    # Updated query with correct calculation for Total_Agravados
+    # SQL query with the correct syntax for SQL Server
     query = """
+        ;WITH
+        -- Step 1: Calculate the 'Agravados' sum
+        Agravados AS (
+            SELECT SUM(SALDO) AS TotalAgravado
+            FROM PRESOCIO
+            WHERE CEDSOC = %s 
+              AND GrabaAhorro = 1
+            GROUP BY CEDSOC
+        ),
+        -- Step 2: Calculate the 'Disponibilidad'
+        Disponibilidad AS (
+            SELECT SUM(SALDOAHO - SALDOBLOQ) AS TotalDisponibilidad
+            FROM AHOSOCIO
+            WHERE CEDSOC = %s 
+              AND CODAHO IN (98, 99)
+            GROUP BY CEDSOC
+        ),
+        -- Step 3: Get the total embargos
+        Embargos AS (
+            SELECT [oca20].[dbo].[fn_Embargos](%s) AS TotalEmbargos
+        ),
+        -- Step 4: Calculate the haberes (same as 'Disponibilidad')
+        Haberes AS (
+            SELECT SUM(SALDOAHO - SALDOBLOQ) AS TotalHaberes
+            FROM AHOSOCIO
+            WHERE CEDSOC = %s 
+              AND CODAHO IN (98, 99)
+            GROUP BY CEDSOC
+        )
+        -- Final Calculation
         SELECT 
-            -- Correctly calculate Total_Agravados by summing SALDO for the specified CEDSOC
-            (SELECT SUM(SALDO) 
-             FROM PRESOCIO 
-             WHERE CEDSOC = %s AND GrabaAhorro = 1
-             GROUP BY CEDSOC) AS Total_Agravados,
-             
-            -- Rest of the calculations using join with AHOSOCIO
-            SUM(A.SALDOAHO - A.SALDOBLOQ) AS Disponibilidad,
-            SUM(A.SALDOAHO - A.SALDOBLOQ) / 2 AS Porcentaje_Disponibilidad,
-            [oca20].[dbo].[fn_Embargos](%s) AS Total_Embargos,
-            [oca20].[dbo].[fn_Fianzas](%s) AS Total_Fianzas,
-            (SUM(A.SALDOAHO - A.SALDOBLOQ) / 2) - [oca20].[dbo].[fn_Embargos](%s) AS Saldo_Final
+            Agravados.TotalAgravado,
+            Disponibilidad.TotalDisponibilidad,
+            (Disponibilidad.TotalDisponibilidad / 2) AS Disponibilidad50,
+            Embargos.TotalEmbargos,
+            Haberes.TotalHaberes,
+            (Disponibilidad.TotalDisponibilidad / 2) - Embargos.TotalEmbargos AS FinalSaldo
         FROM 
-            AHOSOCIO A
-        JOIN 
-            PRESOCIO P ON P.CEDSOC = A.CEDSOC
-        WHERE 
-            P.CEDSOC = %s 
-            AND P.GrabaAhorro = 1
-            AND A.CODAHO IN (98, 99)
-        GROUP BY 
-            P.CEDSOC
+            Agravados
+            CROSS JOIN Disponibilidad
+            CROSS JOIN Embargos
+            CROSS JOIN Haberes;
     """
 
     # Execute the query
     with connections['sqlserver'].cursor() as cursor:
-        cursor.execute(query, [cedula, cedula, cedula, cedula, cedula])
+        cursor.execute(query, [cedula, cedula, cedula, cedula])  # Pass cedula for all placeholders
         row = cursor.fetchone()
 
     # Format the result
@@ -500,14 +533,14 @@ def haberes(request):
                 "Disponibilidad": row[1] if row[1] is not None else 0,  # Ensure no null value
                 "50_Porcentaje_Disponibilidad": row[2] if row[2] is not None else 0,  # Ensure no null value
                 "Total_Embargos": row[3] if row[3] is not None else 0,  # Ensure no null value
-                "Total_Fianzas": row[4] if row[4] is not None else 0,  # Ensure no null value
-                "Saldo_Final": row[5] if row[5] is not None else 0  # Ensure no null value
+                "Saldo_Final": row[4] if row[4] is not None else 0  # Ensure no null value
             }
         ]
     else:
         result = []
 
     return Response(result, status=status.HTTP_200_OK)
+
 
 
 
