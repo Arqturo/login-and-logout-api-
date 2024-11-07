@@ -117,7 +117,7 @@ def password_reset(request):
         
         send_mail(
             'Password Reset Request',
-            f'Use the link to reset your password: {front}/auth/signin/password_reset/confirm?uid={uid}&token={token}',
+            f'Usa este link para cambiar tus credenciales: {front}/auth/signin/password_reset/confirm?uid={uid}&token={token}',
             email_sender,
             [email],
             fail_silently=False,
