@@ -342,25 +342,22 @@ def search_custom_users(request):
     full_name = request.query_params.get('full_name', None)
 
     filters = {}
+    
     if cedula:
-        filters['cedula'] = cedula
+        filters['cedula__icontains'] = cedula
+
     if full_name:
         filters['full_name__icontains'] = full_name
 
-    # Perform the query with filters and paginate in one go
     custom_users = CustomUser.objects.filter(**filters)
 
-    # Total number of users can be fetched from the same query
     total_custom_users = custom_users.count()
 
-    # Now paginate the queryset
     paginator = CustomUserPagination()
     paginated_users = paginator.paginate_queryset(custom_users, request)
 
-    # Serialize the paginated data
     serializer = CustomUserSerializer(paginated_users, many=True)
 
-    # Prepare response data
     response_data = {
         'total_custom_users': total_custom_users,
         'total_pages': paginator.page.paginator.num_pages,
@@ -368,6 +365,7 @@ def search_custom_users(request):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
+
 
 
 
