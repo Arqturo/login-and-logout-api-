@@ -24,6 +24,13 @@ from rest_framework.pagination import PageNumberPagination
 from django.db import connections
 from django.contrib.auth.models import Group
 
+import pandas as pd
+from django.core.management.base import BaseCommand
+from server.models import UserCaja  #
+
+from django.http import JsonResponse
+from django.db import transaction
+
 
 
 
@@ -159,9 +166,8 @@ def profile(request):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def update_own_profile(request):
-    custom_user = request.user  # Get the authenticated user
+    custom_user = request.user 
     
-    # Check if 'cedula' is in the request data and if so, remove it
     if 'cedula' in request.data:
         return Response({"error": "No se puede cambiar la cedula."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -373,14 +379,12 @@ def update_custom_user(request, custom_user_id):
     """
     Allows a PageMaster to update the properties of a CustomUser given their ID.
     """
-    # Get the CustomUser object or return 404 if not found
     custom_user = get_object_or_404(CustomUser, id=custom_user_id)
     
-    # Deserialize the incoming request data
     serializer = CustomUserSerializer(custom_user, data=request.data, partial=True)
     
     if serializer.is_valid():
-        serializer.save()  # Save the updated user details
+        serializer.save()  
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -423,7 +427,6 @@ def user_loans(request):
         cursor.execute(query, [cedula])
         rows = cursor.fetchall()
 
-    # Convert rows to a list of dictionaries for easier serialization
     results = [
         {
             'SERIAL': row[0],
@@ -539,8 +542,6 @@ def haberes(request):
     return Response(result, status=status.HTTP_200_OK)
 
 
-
-
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
@@ -575,3 +576,60 @@ def fianza(request):
     ]
 
     return Response(result, status=status.HTTP_200_OK)
+
+
+# pagemaster last function
+
+EXPECTED_COLUMNS = [
+    'CE_TRABAJADOR',
+    'CO_UBICACION',
+    'TIPOPERSONAL',
+    'EMAIL',
+    'TELEFONOS',
+    'CTABANCO',
+    'DESCRIPCION',
+]
+
+@api_view(['POST'])
+@permission_classes([IsPageMaster])
+def import_users_from_excel(request):
+
+    if not request.user.groups.filter(name='PageMaster').exists():
+        return JsonResponse({'detail': 'Permission denied. You must be a PageMaster.'}, status=403)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({'detail': 'No file provided.'}, status=400)
+
+    excel_file = request.FILES['file']
+    
+    try:
+        df = pd.read_excel(excel_file)
+        
+        required_columns = ['CE_TRABAJADOR', 'CO_UBICACION', 'TIPOPERSONAL', 'EMAIL', 'TELEFONOS', 'CTABANCO', 'DESCRIPCION']
+        
+        if not all(col in df.columns for col in required_columns):
+            return JsonResponse({'detail': 'The Excel file must contain the following columns: CE_TRABAJADOR, CO_UBICACION, TIPOPERSONAL, EMAIL, TELEFONOS, CTABANCO, DESCRIPCION.'}, status=400)
+        
+        with transaction.atomic():  
+            UserCaja.objects.all().delete()  
+
+            users = [
+                UserCaja(
+                    CE_TRABAJADOR=row['CE_TRABAJADOR'],
+                    CO_UBICACION=row['CO_UBICACION'],
+                    TIPOPERSONAL=row['TIPOPERSONAL'],
+                    EMAIL=row['EMAIL'],
+                    TELEFONOS=row['TELEFONOS'],
+                    CTABANCO=row['CTABANCO'],
+                    DESCRIPCION=row['DESCRIPCION'],
+                )
+                for _, row in df.iterrows()
+            ]
+            
+            # Perform the bulk insert
+            UserCaja.objects.bulk_create(users)
+
+        return JsonResponse({'detail': 'Successfully imported users from the Excel file.'}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'detail': f'Error importing users: {str(e)}'}, status=500)

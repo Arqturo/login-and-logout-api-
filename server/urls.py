@@ -45,6 +45,8 @@ urlpatterns = [
     path('pagemaster/login/', views.pagemaster_login, name='pagemaster_login'),
     path('pagemaster/search-custom-users/', views.search_custom_users, name='search_custom_users'),
     path('pagemaster/update-custom-user/<int:custom_user_id>/', views.update_custom_user, name='update_custom_user'),
+    path('pagemaster/import-users/', views.import_users_from_excel, name='import_users_from_excel'),
+
 
 
     
