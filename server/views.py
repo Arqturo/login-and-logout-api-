@@ -342,14 +342,15 @@ def search_custom_users(request):
     full_name = request.query_params.get('full_name', None)
 
     filters = {}
-    
+
     if cedula:
         filters['cedula__icontains'] = cedula
 
     if full_name:
         filters['full_name__icontains'] = full_name
 
-    custom_users = CustomUser.objects.filter(**filters)
+    # Adjust query to exclude users with null phone_number and empty full_name
+    custom_users = CustomUser.objects.exclude(phone_number__isnull=True, full_name="").filter(**filters)
 
     total_custom_users = custom_users.count()
 
@@ -365,10 +366,6 @@ def search_custom_users(request):
     }
 
     return Response(response_data, status=status.HTTP_200_OK)
-
-
-
-
 
 @api_view(['PUT'])
 @permission_classes([IsPageMaster])
