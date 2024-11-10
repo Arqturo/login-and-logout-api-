@@ -309,7 +309,7 @@ def post_detail_get(request, post_id):
     return Response(serializer.data)
 
 @api_view(['PUT', 'PATCH', 'DELETE'])
-@permission_classes([IsPageMaster])  # Authentication required for these methods
+@permission_classes([IsPageMaster])
 def post_detail_modify(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
@@ -593,9 +593,6 @@ EXPECTED_COLUMNS = [
 @api_view(['POST'])
 @permission_classes([IsPageMaster])
 def import_users_from_excel(request):
-
-    if not request.user.groups.filter(name='PageMaster').exists():
-        return JsonResponse({'detail': 'Permission denied. You must be a PageMaster.'}, status=403)
     
     if 'file' not in request.FILES:
         return JsonResponse({'detail': 'No file provided.'}, status=400)
@@ -608,7 +605,7 @@ def import_users_from_excel(request):
         required_columns = ['CE_TRABAJADOR', 'CO_UBICACION', 'TIPOPERSONAL', 'EMAIL', 'TELEFONOS', 'CTABANCO', 'DESCRIPCION']
         
         if not all(col in df.columns for col in required_columns):
-            return JsonResponse({'detail': 'The Excel file must contain the following columns: CE_TRABAJADOR, CO_UBICACION, TIPOPERSONAL, EMAIL, TELEFONOS, CTABANCO, DESCRIPCION.'}, status=400)
+            return JsonResponse({'detail': 'Debe poseer las siguientes columnas: CE_TRABAJADOR, CO_UBICACION, TIPOPERSONAL, EMAIL, TELEFONOS, CTABANCO, DESCRIPCION.'}, status=400)
         
         with transaction.atomic():  
             UserCaja.objects.all().delete()  
@@ -629,7 +626,7 @@ def import_users_from_excel(request):
             # Perform the bulk insert
             UserCaja.objects.bulk_create(users)
 
-        return JsonResponse({'detail': 'Successfully imported users from the Excel file.'}, status=200)
+        return JsonResponse({'detail': 'importacion Exitosa.'}, status=200)
 
     except Exception as e:
         return JsonResponse({'detail': f'Error importing users: {str(e)}'}, status=500)
