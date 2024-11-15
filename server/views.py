@@ -549,6 +549,44 @@ def haberes(request):
 
     return Response(result, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def dividendos(request):
+    cedula = request.user.cedula  # Get the user's cedula from the authenticated user
+
+    query = """
+        -- Step 1: Retrieve dividendos data from AHOSOCIO and AHORROS
+        SELECT 
+            S.CODAHO,
+            A.DESCRIP,
+            S.SALDOAHO
+        FROM 
+            AHOSOCIO S 
+        INNER JOIN 
+            AHORROS A ON A.CODAHO = S.CODAHO
+        WHERE 
+            S.CEDSOC = %s
+    """
+
+    # Execute the query
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])  # Pass cedula for the placeholder
+        rows = cursor.fetchall()
+
+    # Format the result
+    result = []
+    if rows:
+        for row in rows:
+            result.append({
+                "Codigo_Ahorro": row[0] if row[0] is not None else 0,  # Renamed to 'Codigo Ahorro'
+                "Descripcion": row[1] if row[1] is not None else "",  # Ensure no null value for DESCRIP
+                "Saldo_Ahorro": row[2] if row[2] is not None else 0  # Ensure no null value for SALDOAHO
+            })
+    
+    return Response(result, status=status.HTTP_200_OK)
+
+
 
 
 @api_view(['GET'])
