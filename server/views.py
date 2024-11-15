@@ -586,6 +586,68 @@ def dividendos(request):
     
     return Response(result, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def solicitudes(request):
+    cedula = request.user.cedula  # Get the user's cedula from the authenticated user
+
+    query = """
+        -- Step 1: Retrieve solicitudes data from SOLICITUD, SOCIOS, and PRESTAMO
+        SELECT
+            dbo.SOLICITUD.SERIAL,
+            dbo.SOCIOS.APELLIDOS,
+            dbo.SOCIOS.NOMBRE,
+            dbo.SOLICITUD.MONTOSOLI,
+            dbo.SOLICITUD.MONTOPTMO,
+            dbo.SOLICITUD.WEB,
+            dbo.SOLICITUD.CUOESP,
+            dbo.PRESTAMO.DESCRIP,
+            dbo.SOLICITUD.NROCUOTA,
+            dbo.SOLICITUD.TASA,
+            dbo.SOLICITUD.STATUS,
+            dbo.SOLICITUD.NRODOC,
+            dbo.SOLICITUD.EMITIDO,
+            dbo.SOLICITUD.CEDSOC
+        FROM
+            dbo.SOLICITUD
+        INNER JOIN dbo.SOCIOS ON dbo.SOLICITUD.CEDSOC = dbo.SOCIOS.CEDSOC
+        INNER JOIN dbo.PRESTAMO ON dbo.PRESTAMO.CODPTMO = dbo.SOLICITUD.CODPTMO
+        WHERE
+            dbo.SOLICITUD.CEDSOC = %s
+            AND dbo.SOLICITUD.STATUS IN (1, 2, 3)
+            AND dbo.SOLICITUD.EMITIDO = 0
+            AND dbo.SOLICITUD.NRODOC = 0
+    """
+
+    # Execute the query
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])  # Pass cedula for the placeholder
+        rows = cursor.fetchall()
+
+    # Format the result
+    result = []
+    if rows:
+        for row in rows:
+            result.append({
+                "Serial": row[0] if row[0] is not None else 0,
+                "Apellidos": row[1] if row[1] is not None else "",
+                "Nombre": row[2] if row[2] is not None else "",
+                "Monto_Solicitado": row[3] if row[3] is not None else 0,
+                "Monto_Prestamo": row[4] if row[4] is not None else 0,
+                "Web": row[5] if row[5] is not None else "",
+                "Cuotas_Esp": row[6] if row[6] is not None else 0,
+                "Descripcion": row[7] if row[7] is not None else "",
+                "Numero_Cuotas": row[8] if row[8] is not None else 0,
+                "Tasa": row[9] if row[9] is not None else 0,
+                "Status": row[10] if row[10] is not None else 0,
+                "Numero_Documento": row[11] if row[11] is not None else 0,
+                "Emitido": row[12] if row[12] is not None else 0,
+                "Cedula_Socio": row[13] if row[13] is not None else ""
+            })
+
+    return Response(result, status=status.HTTP_200_OK)
+
 
 
 
