@@ -472,9 +472,8 @@ from django.db import connections
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def haberes(request):
-    cedula = request.user.cedula  # Get the user's cedula from the authenticated user
+    cedula = request.user.cedula  
 
-    # SQL query with the correct syntax for SQL Server
     query = """
         ;WITH
         -- Step 1: Calculate the 'Agravados' sum
@@ -504,6 +503,12 @@ def haberes(request):
             WHERE CEDSOC = %s 
               AND CODAHO IN (98, 99)
             GROUP BY CEDSOC
+        ),
+        -- Step 5: Retrieve the sueldo from SOCIOS
+        Sueldo AS (
+            SELECT SUELDO
+            FROM dbo.SOCIOS
+            WHERE CEDSOC = %s
         )
         -- Final Calculation
         SELECT 
@@ -512,17 +517,19 @@ def haberes(request):
             (Disponibilidad.TotalDisponibilidad / 2) AS Disponibilidad50,
             Embargos.TotalEmbargos,
             Haberes.TotalHaberes,
-            (Disponibilidad.TotalDisponibilidad / 2) - Embargos.TotalEmbargos AS FinalSaldo
+            (Disponibilidad.TotalDisponibilidad / 2) - Embargos.TotalEmbargos AS FinalSaldo,
+            Sueldo.SUELDO
         FROM 
             Agravados
             CROSS JOIN Disponibilidad
             CROSS JOIN Embargos
-            CROSS JOIN Haberes;
+            CROSS JOIN Haberes
+            CROSS JOIN Sueldo;
     """
 
     # Execute the query
     with connections['sqlserver'].cursor() as cursor:
-        cursor.execute(query, [cedula, cedula, cedula, cedula])  # Pass cedula for all placeholders
+        cursor.execute(query, [cedula, cedula, cedula, cedula, cedula])  
         row = cursor.fetchone()
 
     # Format the result
@@ -533,13 +540,15 @@ def haberes(request):
                 "Disponibilidad": row[1] if row[1] is not None else 0,  # Ensure no null value
                 "50_Porcentaje_Disponibilidad": row[2] if row[2] is not None else 0,  # Ensure no null value
                 "Total_Embargos": row[3] if row[3] is not None else 0,  # Ensure no null value
-                "Saldo_Final": row[4] if row[4] is not None else 0  # Ensure no null value
+                "Saldo_Final": row[4] if row[4] is not None else 0,  # Ensure no null value
+                "Sueldo": row[5] if row[5] is not None else 0  # Ensure no null value for SUELDO
             }
         ]
     else:
         result = []
 
     return Response(result, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
