@@ -4,13 +4,7 @@ from django.core.validators import RegexValidator
 from django.conf import settings
 from rest_framework.authtoken.models import Token as DefaultToken
 from django.contrib.auth import get_user_model
-
-
-
-
-from django.contrib.auth.models import AbstractUser, Group, Permission
-from django.core.validators import RegexValidator
-from django.db import models
+from django.utils import timezone
 
 class CustomUser(AbstractUser):
     cedula = models.CharField(
@@ -26,6 +20,12 @@ class CustomUser(AbstractUser):
     )
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=255, blank=True, null=False)
+    
+    # Birth date is now mandatory and defaults to today
+    birth_date = models.DateField(default=timezone.now)  # Use today's date as default
+    
+    # Room address is optional, but with a larger max length
+    room_address = models.CharField(max_length=500, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if not self.email:
@@ -46,7 +46,7 @@ class CustomUser(AbstractUser):
         if self.has_perm('server.add_customuser'):
             roles.append('CustomUser')
         return roles
-
+    
  # Caja
 
 class UserCaja(models.Model):
