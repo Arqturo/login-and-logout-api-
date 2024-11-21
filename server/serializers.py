@@ -2,29 +2,27 @@ from rest_framework import serializers
 from .models import CustomUser, PageMaster, Post
 from rest_framework import serializers
 from django.utils import timezone
-
 class CustomUserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ['id', 'cedula', 'email', 'phone_number', 'full_name', 'roles']
+        fields = ['id', 'cedula', 'email', 'phone_number', 'full_name', 'birth_date', 'room_address', 'roles']  # Added birth_date and room_address
         extra_kwargs = {
             'cedula': {'required': True},
             'email': {'required': True},
-            'phone_number': {'required': True}
+            'phone_number': {'required': True},
+            'birth_date': {'required': True},
+            'room_address': {'required': False},
         }
 
     def get_roles(self, obj):
         roles = []
-        # Check if user is in any groups
         if obj.groups.exists():
             roles.extend([group.name for group in obj.groups.all()])
-        # You can also check specific permissions here if needed
         if obj.has_perm('server.add_post'):
-            roles.append('PageMaster')  # Adjust based on your permission logic
+            roles.append('PageMaster') 
         return roles
-
 
 class PasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
