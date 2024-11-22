@@ -399,28 +399,28 @@ def user_loans(request):
     cedula = request.user.cedula  
 
     query = """
-    SELECT
-        S.SERIAL,
-        S.CODPTMO,
-        P.DESCRIP,
-        S.FECOTORG,
-        S.FECPPAG,
-        S.FECULTPAG,
-        S.FECULTCUO,
-        S.NROCUOTA,
-        S.NCP,
-        S.MONTOCUOTA,
-        S.MONTO,
-        S.TASA,
-        S.SALDO,
-        S.STATUS,
-        S.CUOTA1,
-        S.SALDO1,
-        S.CUOTA2,
-        S.SALDO2
-    FROM PRESOCIO S
-    INNER JOIN PRESTAMO P ON P.CODPTMO = S.CODPTMO
-    WHERE S.CEDSOC = %s AND S.SALDO <> 0
+SELECT
+    S.SERIAL,
+    S.CODPTMO,
+    P.DESCRIP,
+    S.FECOTORG,
+    S.FECPPAG,
+    S.FECULTPAG,
+    S.FECULTCUO,
+    S.NROCUOTA,
+    S.NCP,
+    S.MONTOCUOTA,
+    S.MONTO,
+    S.TASA,
+    S.SALDO,
+    S.STATUS,
+    S.CUOTA1,
+    S.SALDO1,
+    S.CUOTA2,
+    S.SALDO2
+FROM PRESOCIO S
+INNER JOIN PRESTAMO P ON P.CODPTMO = S.CODPTMO
+WHERE S.CEDSOC = %s AND S.SALDO > 0
     """
 
     with connections['sqlserver'].cursor() as cursor:
