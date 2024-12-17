@@ -690,13 +690,7 @@ def fianza(request):
 # pagemaster last function
 
 EXPECTED_COLUMNS = [
-    'CE_TRABAJADOR',
-    'CO_UBICACION',
-    'TIPOPERSONAL',
-    'EMAIL',
-    'TELEFONOS',
-    'CTABANCO',
-    'DESCRIPCION',
+    'CE_TRABAJADOR'
 ]
 
 @api_view(['POST'])
@@ -711,10 +705,10 @@ def import_users_from_excel(request):
     try:
         df = pd.read_excel(excel_file)
         
-        required_columns = ['CE_TRABAJADOR', 'CO_UBICACION', 'TIPOPERSONAL', 'EMAIL', 'TELEFONOS', 'CTABANCO', 'DESCRIPCION']
+        required_columns = ['CE_TRABAJADOR']
         
         if not all(col in df.columns for col in required_columns):
-            return JsonResponse({'detail': 'Debe poseer las siguientes columnas: CE_TRABAJADOR, CO_UBICACION, TIPOPERSONAL, EMAIL, TELEFONOS, CTABANCO, DESCRIPCION.'}, status=400)
+            return JsonResponse({'detail': 'Debe poseer las siguientes columnas: CE_TRABAJADOR.'}, status=400)
         
         with transaction.atomic():  
             UserCaja.objects.all().delete()  
