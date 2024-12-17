@@ -715,13 +715,7 @@ def import_users_from_excel(request):
 
             users = [
                 UserCaja(
-                    CE_TRABAJADOR=row['CE_TRABAJADOR'],
-                    CO_UBICACION=row['CO_UBICACION'],
-                    TIPOPERSONAL=row['TIPOPERSONAL'],
-                    EMAIL=row['EMAIL'],
-                    TELEFONOS=row['TELEFONOS'],
-                    CTABANCO=row['CTABANCO'],
-                    DESCRIPCION=row['DESCRIPCION'],
+                    CE_TRABAJADOR=row['CE_TRABAJADOR']
                 )
                 for _, row in df.iterrows()
             ]
