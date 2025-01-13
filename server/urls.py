@@ -34,7 +34,7 @@ urlpatterns = [
     path('user/haberes/', views.haberes, name='haberes'),
     path('user/dividendos/', views.dividendos, name='dividendos'),
     path('user/solicitudes/', views.solicitudes, name='solicitudes'),
-
+    path('user/create_loan_request', views.create_loan_request, name='loadRequest'),
 
     path('user/fianzas/', views.fianza, name='fianza'),
     path('profile/edit/', views.update_own_profile, name='update_own_profile'),
