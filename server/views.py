@@ -179,21 +179,6 @@ def update_own_profile(request):
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming the permission class is defined elsewhere
-import pyodbc  # Using pyodbc to connect to SQL Server
-
-# Database connection settings
-def get_db_connection():
-    conn = pyodbc.connect('DRIVER={SQL Server};'
-                          'SERVER=your_server_name;'
-                          'DATABASE=your_database_name;'
-                          'UID=your_user;'
-                          'PWD=your_password')
-    return conn
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
@@ -218,46 +203,43 @@ def create_loan_request(request):
     elif codptmo in [2, 18]:
         garantia = 1
 
-    # Connect to the database
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # Define the SQL query to check for existing requests
+    check_existing_query = """
+        SELECT COUNT(*) 
+        FROM dbo.SOLICITUD
+        WHERE CEDSOC =%s
+        AND CODPTMO = %s
+        AND STATUS = 2
+    """
+
+    # Define the SQL query for inserting a new request
+    insert_query = """
+        INSERT INTO dbo.PaymentRequests (cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+    """
 
     try:
         # Check if there is an existing pending payment request for the user and codptmo
-        cursor.execute("""
-            SELECT COUNT(*) 
-            FROM PaymentRequests 
-            WHERE cedulasoc = ? AND codptmo = ? AND status = 'pending'
-        """, cedulasoc, codptmo)
-        result = cursor.fetchone()
+        with connections['sqlserver'].cursor() as cursor:
+            cursor.execute(check_existing_query, [cedulasoc, codptmo])
+            result = cursor.fetchone()
 
-        if result[0] > 0:
-            return Response({'error': 'Ya existe una solicitud pendiente para este usuario y tipo de pago.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            if result[0] > 0:
+                return Response({'error': 'Ya existe una solicitud pendiente para este usuario y tipo de pago.'},
+                                status=status.HTTP_400_BAD_REQUEST)
 
-        # Insert the new payment request into the database
-        cursor.execute("""
-            INSERT INTO PaymentRequests (cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        """, cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4)
+            # Insert the new payment request into the database
+            cursor.execute(insert_query, [cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4])
 
-        # Commit the transaction
-        conn.commit()
+        # Commit the transaction automatically after the `with` block is closed
 
         # Return success response
         return Response({'message': 'Solicitud de pago creada exitosamente.'}, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        # In case of any error, rollback and return error response
-        conn.rollback()
+        # In case of any error, return error response
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    finally:
-        # Close the cursor and connection
-        cursor.close()
-        conn.close()
-
-
+    
 @api_view(['POST'])
 def upload_files(request):
     planilla = request.FILES.get('file6')
