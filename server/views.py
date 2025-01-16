@@ -180,66 +180,145 @@ def update_own_profile(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+from django.db import connections
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework import status
+
+
+from django.db import connections
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework import status
+
+
+
+    # Extract values from the request data
+
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser
+from django.db import connections
+import logging
+
+logger = logging.getLogger(__name__)
+
+def get_int_param(data, param_name, default=None):
+    """Helper function to safely get an integer parameter from the request."""
+    value = data.get(param_name)
+    if value is None:
+        if default is not None:
+            return default
+        raise ValueError(f"'{param_name}' is required and cannot be None.")
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"'{param_name}' should be an integer.")
+
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser
+from django.db import connections
+import logging
+
+logger = logging.getLogger(__name__)
+
+def get_int_param(data, param_name, default=None):
+    """Helper function to safely get an integer parameter from the request."""
+    value = data.get(param_name)
+    if value is None:
+        if default is not None:
+            return default
+        raise ValueError(f"'{param_name}' is required and cannot be None.")
+    try:
+        return int(value)
+    except ValueError:
+        raise ValueError(f"'{param_name}' should be an integer.")
+
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def create_loan_request(request):
-    # Extract values from the request data
-    cedulasoc = request.user.cedula
-    codptmo = request.data.get('codptmo')
-    ncuotas = request.data.get('ncuotas')
-    monto = request.data.get('monto')
-    garantia = request.data.get('garantia', 0)
-    cuotaespecial = request.data.get('cuotaespecial', 0)
-    modalidad = request.data.get('modalidad')
-    cifiador1 = request.data.get('cifiador1', 0)
-    cifiador2 = request.data.get('cifiador2', 0)
-    cifiador3 = request.data.get('cifiador3', 0)
-    cifiador4 = request.data.get('cifiador4', 0)
-
-    # Adjust 'garantia' based on 'codptmo'
-    if codptmo == 1:
-        garantia = 0
-    elif codptmo in [2, 18]:
-        garantia = 1
-
-    # Define the SQL query to check for existing requests
-    check_existing_query = """
-        SELECT COUNT(*) 
-        FROM dbo.SOLICITUD
-        WHERE CEDSOC =%s
-        AND CODPTMO = %s
-        AND STATUS = 2
-    """
-
-    # Define the SQL query for inserting a new request
-    insert_query = """
-        INSERT INTO dbo.PaymentRequests (cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4, status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
-    """
-
     try:
-        # Check if there is an existing pending payment request for the user and codptmo
+        # Cedulasoc is derived from the authenticated user's profile
+        cedulasoc = int(request.user.cedula)  # Get the cedula from the authenticated user
+        
+        # Extract other parameters from the request body, ensuring they are valid integers
+        codptmo = get_int_param(request.data, 'codptmo')
+        ncuotas = get_int_param(request.data, 'ncuotas')
+        monto = get_int_param(request.data, 'monto')
+        garantia = get_int_param(request.data, 'garantia', 0)  # Default to 0 if not provided
+        cuotaespecial = get_int_param(request.data, 'cuotaespecial', 0)  # Default to 0 if not provided
+        modalidad = get_int_param(request.data, 'modalidad')
+        cifiador1 = get_int_param(request.data, 'cifiador1', 0)  # Default to 0 if not provided
+        cifiador2 = get_int_param(request.data, 'cifiador2', 0)  # Default to 0 if not provided
+        cifiador3 = get_int_param(request.data, 'cifiador3', 0)  # Default to 0 if not provided
+        cifiador4 = get_int_param(request.data, 'cifiador4', 0)  # Default to 0 if not provided
+
+        # Adjust the value of 'garantia' based on 'codptmo'
+        if codptmo == 1:
+            garantia = 0
+        elif codptmo == 2 or codptmo == 18:
+            garantia = 1
+
+        # Check if there are any pending loan requests for this user and loan type
+        query = """
+            SELECT [oca20].[dbo].[fn_SolicitudPtmoPendiente] (?, ?)
+        """
         with connections['sqlserver'].cursor() as cursor:
-            cursor.execute(check_existing_query, [cedulasoc, codptmo])
+            cursor.execute(query, [cedulasoc, codptmo])
             result = cursor.fetchone()
 
-            if result[0] > 0:
-                return Response({'error': 'Ya existe una solicitud pendiente para este usuario y tipo de pago.'},
-                                status=status.HTTP_400_BAD_REQUEST)
+        # If there's a pending loan request, return an error
+        if result and result[0] != 0:
+            return Response({"detail": "There is already a pending loan request."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Insert the new payment request into the database
-            cursor.execute(insert_query, [cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad, cifiador1, cifiador2, cifiador3, cifiador4])
+        # Prepare the parameters for the stored procedure
+        params = [
+            cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad,
+            cifiador1, cifiador2, cifiador3, cifiador4
+        ]
+        
+        # Add the output parameter for 'serial'
+        output_param = 0  # Default output value (serial)
+        params.append(output_param)
 
-        # Commit the transaction automatically after the `with` block is closed
+        logger.debug(f"Stored Procedure Params: {params}")  # Log the params for debugging
+        
+        # Call the stored procedure to create a new loan request
+        stored_proc_query = """
+            EXEC [dbo].[sp_CreaSolicitudPtmo] ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        """
+        
+        with connections['sqlserver'].cursor() as cursor:
+            cursor.execute(stored_proc_query, params)
 
-        # Return success response
-        return Response({'message': 'Solicitud de pago creada exitosamente.'}, status=status.HTTP_201_CREATED)
+            # Fetch the output parameter (serial) from the stored procedure
+            cursor.nextset()
+            serial = cursor.fetchone()[0]
 
+        # If the stored procedure returns a serial number, return it as a response
+        if serial:
+            return Response({"serial": serial}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({"detail": "Error creating loan request."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    except ValueError as ve:
+        logger.error(f"Value error: {str(ve)}")
+        return Response({"detail": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        # In case of any error, return error response
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+        logger.error(f"Error creating loan request: {str(e)}")
+        return Response({"detail": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['POST'])
 def upload_files(request):
     planilla = request.FILES.get('file6')
