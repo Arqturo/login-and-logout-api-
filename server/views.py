@@ -24,6 +24,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db import connections
 from django.contrib.auth.models import Group
 
+import logging
 
 import pandas as pd
 from django.core.management.base import BaseCommand
@@ -181,32 +182,12 @@ def update_own_profile(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-from django.db import connections
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import TokenAuthentication
-from rest_framework import status
 
-
-from django.db import connections
-from rest_framework.response import Response
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.authentication import TokenAuthentication
-from rest_framework import status
 
 
 
     # Extract values from the request data
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser
-from django.db import connections
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -222,14 +203,6 @@ def get_int_param(data, param_name, default=None):
     except ValueError:
         raise ValueError(f"'{param_name}' should be an integer.")
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser
-from django.db import connections
-import logging
-
 logger = logging.getLogger(__name__)
 
 def get_int_param(data, param_name, default=None):
@@ -243,27 +216,6 @@ def get_int_param(data, param_name, default=None):
         return int(value)
     except ValueError:
         raise ValueError(f"'{param_name}' should be an integer.")
-
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming you have this permission class
-from django.db import connections
-
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming you have this permission class
-from django.db import connections
-
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming you have this permission class
-from django.db import connections
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
@@ -606,19 +558,6 @@ WHERE S.CEDSOC = %s AND S.SALDO > 0
     return Response(results, status=status.HTTP_200_OK)
 
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming you have this permission class
-from django.db import connections
-
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authentication import TokenAuthentication
-from .permissions import IsCustomUser  # Assuming you have this permission class
-from django.db import connections
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
@@ -879,3 +818,82 @@ def import_users_from_excel(request):
 
     except Exception as e:
         return JsonResponse({'detail': f'Error importing users: {str(e)}'}, status=500)
+
+
+
+####################################
+
+
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def get_loan_options(request):
+    cedula = request.user.cedula
+    nombres = request.user.full_name
+    
+    if not cedula:
+        return Response({"success": False, "message": "Cedula is required"}, status=400)
+    
+    # Step 1: Fetch savings details based on cedula
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute("""
+            SELECT S.CODAHO, A.DESCRIP, S.SALDOAHO
+            FROM oca20.dbo.AHOSOCIO S
+            INNER JOIN AHORROS A ON A.CODAHO = S.CODAHO
+            WHERE S.CEDSOC = %s AND (S.CODAHO = 98 OR S.CODAHO = 99)
+        """, [cedula])
+        
+        savings_data = cursor.fetchall()
+        total_savings = sum(row[2] for row in savings_data)
+        savings_descriptions = [row[1] for row in savings_data]  # Extracting descriptions of savings
+        savings_amounts = [row[2] for row in savings_data]  # Extracting amounts of savings
+
+    # Step 2: Fetch available loans
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute("SELECT * FROM PRESTAMO WHERE ESTADO = 'A' AND ACT_WEB = 1")
+        loans = cursor.fetchall()
+
+    loan_options = []
+    for loan in loans:
+        loan_data = {
+            "loan_id": loan[0],  # Assuming loan ID is in first column
+            "description": f"{loan[1]} {loan[2]}",  # Assuming description is in the second and third columns
+            "img_url": f"assets/images/prestamos/{loan[4]}.png",  # Assuming image is in the 5th column
+            "recaudos": [],
+            "max_amount": 0,
+            "savings_details": [],  # New field to include savings details
+        }
+
+        # Step 3: Calculate the maximum loan amount
+        if loan[0] == 1:  # Example: for loan with CODPTMO = 1
+            loan_data["max_amount"] = float(total_savings) * 0.5  # Convert total_savings to float
+        elif loan[0] == 2 or loan[0] == 18:  # Loans based on specific savings types
+            loan_data["max_amount"] = float(total_savings) * 0.8  # Convert total_savings to float
+        else:
+            loan_data["max_amount"] = float(total_savings)  # Default to the total savings as float
+
+        # Add savings details (descriptions and amounts) to the loan data
+        for desc, amt in zip(savings_descriptions, savings_amounts):
+            loan_data["savings_details"].append({
+                "description": desc,  # Savings description
+                "amount": float(amt),  # Convert amount to float
+            })
+
+        # Step 4: Fetch related document requirements (recaudos)
+        with connections['sqlserver'].cursor() as cursor:
+            cursor.execute("SELECT * FROM RECAPRES WHERE CODPTMO = %s", [loan[0]])
+            recaudos = cursor.fetchall()
+            for recaudo in recaudos:
+                loan_data["recaudos"].append({
+                    "document": recaudo[1],  # Assuming document name is in second column
+                    "optional": "Optional" if recaudo[2] == '1' else "Required"  # Assuming optional flag is in third column
+                })
+
+        loan_options.append(loan_data)
+
+    # Step 5: Return the loan options in a JSON response
+    return Response({
+        "success": True,
+        "message": "Loan options fetched successfully",
+        "data": loan_options
+    })
