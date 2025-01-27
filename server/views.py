@@ -251,6 +251,20 @@ from rest_framework.authentication import TokenAuthentication
 from .permissions import IsCustomUser  # Assuming you have this permission class
 from django.db import connections
 
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser  # Assuming you have this permission class
+from django.db import connections
+
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser  # Assuming you have this permission class
+from django.db import connections
+
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
@@ -259,6 +273,17 @@ def create_loan_request(request):
         # Extract necessary data from the request (cedulasoc and codptmo)
         cedulasoc = int(request.user.cedula)
         codptmo = request.data.get('codptmo')
+        
+        # Parameters for the stored procedure (should come from the request)
+        ncuotas = request.data.get('ncuotas')  # Default to 12 if not provided
+        monto = request.data.get('monto')  # Default to 500000 if not provided
+        garantia = request.data.get('garantia', 0)  # Default to 1 if not provided
+        cuotaespecial = request.data.get('cuotaespecial', 0)  # Default to 0 if not provided
+        modalidad = request.data.get('modalidad', 0)  # Default to 1 if not provided
+        cifiador1 = request.data.get('cifiador1', 0)  # Default to 0 if not provided
+        cifiador2 = request.data.get('cifiador2', 0)  # Default to 0 if not provided
+        cifiador3 = request.data.get('cifiador3', 0)  # Default to 0 if not provided
+        cifiador4 = request.data.get('cifiador4', 0)  # Default to 0 if not provided
 
         # SQL query to check if the loan request already exists
         query = """
@@ -272,14 +297,37 @@ def create_loan_request(request):
 
         # If the result is 0, it means the loan can be created, otherwise, it has already been created
         if result and result[0] == 0:
-            return Response({'message': 'Se puede crear', 'can_create': False}, status=status.HTTP_200_OK)
+            # SQL query to execute the stored procedure and capture the OUTPUT serial
+            sp_query = """
+                DECLARE @serial INT;
+                EXEC [dbo].[sp_CreaSolicitudPtmo] 
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, @serial OUTPUT;
+                SELECT @serial AS serial;
+            """
+            with connections['sqlserver'].cursor() as cursor:
+                cursor.execute(sp_query, [
+                    cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, 
+                    modalidad, cifiador1, cifiador2, cifiador3, cifiador4
+                ])
+                # Fetch the output (serial)
+                row = cursor.fetchone()
+                serial = row[0] if row else None
+
+            return Response({
+                'message': 'Préstamo creado exitosamente',
+                'can_create': False,
+                'serial': serial  # Include the generated serial in the response
+            }, status=status.HTTP_200_OK)
+
         else:
-            return Response({'message': 'Este préstamo ya fue solicitado', 'can_create': True}, status=status.HTTP_200_OK)
+            return Response({
+                'message': 'Este préstamo ya fue solicitado', 
+                'can_create': True
+            }, status=status.HTTP_200_OK)
 
     except Exception as e:
         # Handle any exceptions (e.g., database errors) and return a failure response
         return Response({'message': str(e), 'can_create': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 
