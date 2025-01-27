@@ -269,7 +269,7 @@ def create_loan_request(request):
         elif codptmo == 2 or codptmo == 18:
             garantia = 1
 
-        # Check if there are any pending loan requests for this user and loan type
+        # Step 1: Check for pending loan requests
         query = """
             SELECT [oca20].[dbo].[fn_SolicitudPtmoPendiente] (?, ?)
         """
@@ -279,9 +279,9 @@ def create_loan_request(request):
 
         # If there's a pending loan request, return an error
         if result and result[0] != 0:
-            return Response({"detail": "There is already a pending loan request."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Ya se tiene un préstamo de este tipo."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Prepare the parameters for the stored procedure
+        # Step 2: Proceed to create the loan request if no pending loan
         params = [
             cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad,
             cifiador1, cifiador2, cifiador3, cifiador4
@@ -309,7 +309,7 @@ def create_loan_request(request):
         if serial:
             return Response({"serial": serial}, status=status.HTTP_201_CREATED)
         else:
-            return Response({"detail": "Error creating loan request."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": "Error creando la solicitud de préstamo."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     except ValueError as ve:
         logger.error(f"Value error: {str(ve)}")
@@ -317,6 +317,8 @@ def create_loan_request(request):
     except Exception as e:
         logger.error(f"Error creating loan request: {str(e)}")
         return Response({"detail": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 @api_view(['POST'])
