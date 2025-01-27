@@ -24,6 +24,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.db import connections
 from django.contrib.auth.models import Group
 
+
 import pandas as pd
 from django.core.management.base import BaseCommand
 from server.models import UserCaja  #
@@ -243,80 +244,41 @@ def get_int_param(data, param_name, default=None):
     except ValueError:
         raise ValueError(f"'{param_name}' should be an integer.")
 
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.authentication import TokenAuthentication
+from .permissions import IsCustomUser  # Assuming you have this permission class
+from django.db import connections
+
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def create_loan_request(request):
     try:
-        # Cedulasoc is derived from the authenticated user's profile
-        cedulasoc = int(request.user.cedula)  # Get the cedula from the authenticated user
-        
-        # Extract other parameters from the request body, ensuring they are valid integers
-        codptmo = get_int_param(request.data, 'codptmo')
-        ncuotas = get_int_param(request.data, 'ncuotas')
-        monto = get_int_param(request.data, 'monto')
-        garantia = get_int_param(request.data, 'garantia', 0)  # Default to 0 if not provided
-        cuotaespecial = get_int_param(request.data, 'cuotaespecial', 0)  # Default to 0 if not provided
-        modalidad = get_int_param(request.data, 'modalidad')
-        cifiador1 = get_int_param(request.data, 'cifiador1', 0)  # Default to 0 if not provided
-        cifiador2 = get_int_param(request.data, 'cifiador2', 0)  # Default to 0 if not provided
-        cifiador3 = get_int_param(request.data, 'cifiador3', 0)  # Default to 0 if not provided
-        cifiador4 = get_int_param(request.data, 'cifiador4', 0)  # Default to 0 if not provided
+        # Extract necessary data from the request (cedulasoc and codptmo)
+        cedulasoc = int(request.user.cedula)
+        codptmo = request.data.get('codptmo')
 
-        # Adjust the value of 'garantia' based on 'codptmo'
-        if codptmo == 1:
-            garantia = 0
-        elif codptmo == 2 or codptmo == 18:
-            garantia = 1
-
-        # Step 1: Check for pending loan requests
+        # SQL query to check if the loan request already exists
         query = """
-            SELECT [oca20].[dbo].[fn_SolicitudPtmoPendiente] (?, ?)
+            SELECT [oca20].[dbo].[fn_SolicitudPtmoPendiente] (%s, %s)
         """
+
+        # Execute the query using the 'sqlserver' connection
         with connections['sqlserver'].cursor() as cursor:
-            cursor.execute(query, [cedulasoc, codptmo])
-            result = cursor.fetchone()
+            cursor.execute(query, [cedulasoc, codptmo])  # Pass the parameters as a list
+            result = cursor.fetchone()  # fetchone() returns a single row, if any
 
-        # If there's a pending loan request, return an error
-        if result and result[0] != 0:
-            return Response({"detail": "Ya se tiene un préstamo de este tipo."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Step 2: Proceed to create the loan request if no pending loan
-        params = [
-            cedulasoc, codptmo, ncuotas, monto, garantia, cuotaespecial, modalidad,
-            cifiador1, cifiador2, cifiador3, cifiador4
-        ]
-        
-        # Add the output parameter for 'serial'
-        output_param = 0  # Default output value (serial)
-        params.append(output_param)
-
-        logger.debug(f"Stored Procedure Params: {params}")  # Log the params for debugging
-        
-        # Call the stored procedure to create a new loan request
-        stored_proc_query = """
-            EXEC [dbo].[sp_CreaSolicitudPtmo] ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-        """
-        
-        with connections['sqlserver'].cursor() as cursor:
-            cursor.execute(stored_proc_query, params)
-
-            # Fetch the output parameter (serial) from the stored procedure
-            cursor.nextset()
-            serial = cursor.fetchone()[0]
-
-        # If the stored procedure returns a serial number, return it as a response
-        if serial:
-            return Response({"serial": serial}, status=status.HTTP_201_CREATED)
+        # If the result is 0, it means the loan can be created, otherwise, it has already been created
+        if result and result[0] == 0:
+            return Response({'message': 'Se puede crear', 'can_create': False}, status=status.HTTP_200_OK)
         else:
-            return Response({"detail": "Error creando la solicitud de préstamo."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'message': 'Este préstamo ya fue solicitado', 'can_create': True}, status=status.HTTP_200_OK)
 
-    except ValueError as ve:
-        logger.error(f"Value error: {str(ve)}")
-        return Response({"detail": str(ve)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        logger.error(f"Error creating loan request: {str(e)}")
-        return Response({"detail": f"Error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # Handle any exceptions (e.g., database errors) and return a failure response
+        return Response({'message': str(e), 'can_create': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
