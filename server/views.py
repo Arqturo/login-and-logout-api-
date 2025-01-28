@@ -856,12 +856,16 @@ def get_loan_options(request):
     loan_options = []
     for loan in loans:
         loan_data = {
-            "loan_id": loan[0],  # Assuming loan ID is in first column
+            "loan_id": loan[0],  # Assuming loan ID is in the first column
             "description": f"{loan[1]} {loan[2]}",  # Assuming description is in the second and third columns
             "img_url": f"assets/images/prestamos/{loan[4]}.png",  # Assuming image is in the 5th column
+            "codprestamo": loan[0],  # Loan code (same as loan ID)
+            "ncuotas": [1, 2],  # Possible cuotas (installments)
             "recaudos": [],
             "max_amount": 0,
-            "savings_details": [],  # New field to include savings details
+            "savings_details": [],
+            "garantia": loan[5] if len(loan) > 5 else None,  # Assuming guarantee data is available in column 5
+            "serial": loan[6] if len(loan) > 6 else None,  # Assuming serial is available in column 6
         }
 
         # Step 3: Calculate the maximum loan amount
