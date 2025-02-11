@@ -1,7 +1,13 @@
 from rest_framework import serializers
-from .models import CustomUser, PageMaster, Post
+from .models import CustomUser, PageMaster, Post,InnerPrestamo
 from rest_framework import serializers
 from django.utils import timezone
+
+class InnerPrestamoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InnerPrestamo
+        fields = ['id', 'name', 'description', 'enable']  # Include the fields you want to expose in the API
+
 class CustomUserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
 

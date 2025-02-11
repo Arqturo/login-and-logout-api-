@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from django.http import FileResponse, Http404
 import os
-from .serializers import CustomUserSerializer, PageMasterSerializer, PostSerializer
+from .serializers import CustomUserSerializer, PageMasterSerializer, PostSerializer,InnerPrestamoSerializer  
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -23,7 +23,7 @@ from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
 from django.db import connections
 from django.contrib.auth.models import Group
-
+from .models import InnerPrestamo  # Make sure to import your model for InnerPrestamo
 import logging
 
 import pandas as pd
@@ -494,6 +494,60 @@ def update_custom_user(request, custom_user_id):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class InnerPrestamoPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+@api_view(['GET'])
+@permission_classes([IsPageMaster])
+def search_inner_prestamos(request):
+    # Get query parameters for filtering
+    name = request.query_params.get('name', None)
+    description = request.query_params.get('description', None)
+
+    filters = {}
+
+    # Log query parameters
+    print(f"Query Parameters - name: {name}, description: {description}")
+
+    if name:
+        filters['name__icontains'] = name  # Case-insensitive search for name
+
+    if description:
+        filters['description__icontains'] = description  # Case-insensitive search for description
+
+    # Debug: Log the filters applied
+    print(f"Filters applied: {filters}")
+
+    # Remove the exclusion of records with empty description
+    inner_prestamos = InnerPrestamo.objects.filter(**filters)
+
+    # Debug: Log the raw query
+    print(inner_prestamos.query)
+
+    total_inner_prestamos = inner_prestamos.count()
+
+    paginator = InnerPrestamoPagination()
+    paginated_prestamos = paginator.paginate_queryset(inner_prestamos, request)
+
+    # Serialize the paginated results
+    serializer = InnerPrestamoSerializer(paginated_prestamos, many=True)
+
+    # Prepare response data
+    response_data = {
+        'total_inner_prestamos': total_inner_prestamos,
+        'total_pages': paginator.page.paginator.num_pages,
+        'results': serializer.data,
+    }
+
+    # Debug: Log the response data
+    print(f"Response data: {response_data}")
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+
 # SQL REQUESTS  
 
 @api_view(['GET'])
@@ -819,6 +873,77 @@ def import_users_from_excel(request):
     except Exception as e:
         return JsonResponse({'detail': f'Error importing users: {str(e)}'}, status=500)
 
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status
+from .models import InnerPrestamo
+from django.db import connections
+from .permissions import IsPageMaster
+
+@api_view(['POST'])
+@permission_classes([IsPageMaster])
+def import_prestamos(request):
+    # SQL query to fetch data from SQL Server
+    query = """
+        SELECT TOP (1000) 
+               [CODPTMO], [CODART], [DESCRIP], [CIGLAS], [GRPPRE], [GRAHORRO], 
+               [DEMPRE], [RECPRE], [CODLUZ], [PLAZOGRAHAB], [TIPCALINT], 
+               [ANTIGUEDAD], [FIADOR], [PLAZOG], [REFINANCIA], [FRECUENCIA], 
+               [ESTADO], [ENTPAR], [ORDDENAGENDA], [CUENTACO], [CUECON1], 
+               [CUECON2], [MINCUOPAGO], [TIPO], [OBSERVACION], [PNPTMO], 
+               [CUECON3], [AF1], [AF2], [AF3], [AF4], [AUX1], [AUX2], [AUX3], 
+               [AUX4], [ACT_WEB], [AproAuto], [CartaCompromiso], 
+               [LimiteMontoAfin], [GarantiaPrestaciones], [PermiteGrabarAhorro], 
+               [CapacidadPago], [IMG_PRE], [Fiador2], [DESC2], [FianzaCrusada]
+        FROM [oca20].[dbo].[PRESTAMO]
+    """
+    
+    # Execute the SQL query to fetch the data from SQL Server
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+    # Create a set of all prestamo IDs (CODPTMO) from the SQL result
+    prestamo_ids_from_sql = {row[0] for row in rows}
+
+    # Initialize counters for created and deleted records
+    created_count = 0
+    deleted_count = 0
+
+    # Get the existing InnerPrestamos before creating new ones to avoid accidentally deleting newly created ones
+    existing_inner_prestamos = {inner_prestamo.prestamo_id for inner_prestamo in InnerPrestamo.objects.all()}
+
+    # Loop through the fetched data and check if InnerPrestamo exists in the SQLite database
+    for row in rows:
+        prestamo_id = row[0]  # Assuming the 'CODPTMO' is the first column, which is the prestamo ID
+        prestamo_name = row[2]  # 'DESCRIP' is the third column
+
+        # Check if there is an existing InnerPrestamo with the same 'prestamo_id'
+        if prestamo_id not in existing_inner_prestamos:
+            # If it doesn't exist, create a new InnerPrestamo
+            InnerPrestamo.objects.create(
+                prestamo_id=prestamo_id,  # Set 'prestamo_id' field to 'CODPTMO'
+                name=prestamo_name,  # Set 'name' field to 'DESCRIP'
+                description='',  # Set description as blank
+                enable=False  # Set enable as False
+            )
+            created_count += 1  # Increment created count
+        else:
+            # Update the existing InnerPrestamo if the name is not already set correctly
+            InnerPrestamo.objects.filter(prestamo_id=prestamo_id).update(name=prestamo_name)
+    
+    # Now, delete any InnerPrestamo that doesn't exist in the fetched prestamo_ids_from_sql
+    for inner_prestamo in InnerPrestamo.objects.filter(prestamo_id__in=existing_inner_prestamos):
+        if inner_prestamo.prestamo_id not in prestamo_ids_from_sql:
+            # Delete InnerPrestamo if its 'prestamo_id' doesn't exist in the SQL Server data
+            inner_prestamo.delete()
+            deleted_count += 1  # Increment deleted count
+
+    # Return a success response with the counts of created and deleted records
+    return Response({
+        'message': f'{created_count} InnerPrestamos created and {deleted_count} outdated InnerPrestamos deleted.'
+    }, status=status.HTTP_200_OK)
+
 
 
 ####################################
@@ -901,3 +1026,4 @@ def get_loan_options(request):
         "message": "Loan options fetched successfully",
         "data": loan_options
     })
+
