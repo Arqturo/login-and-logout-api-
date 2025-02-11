@@ -498,55 +498,34 @@ class InnerPrestamoPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
+    page_query_param = 'page'
 
 @api_view(['GET'])
 @permission_classes([IsPageMaster])
 def search_inner_prestamos(request):
-    # Get query parameters for filtering
+    # Get query parameters from request
     name = request.query_params.get('name', None)
-    description = request.query_params.get('description', None)
-
+    
+    # Create filter dictionary
     filters = {}
-
-    # Log query parameters
-    print(f"Query Parameters - name: {name}, description: {description}")
-
     if name:
-        filters['name__icontains'] = name  # Case-insensitive search for name
+        filters['name__icontains'] = name
 
-    if description:
-        filters['description__icontains'] = description  # Case-insensitive search for description
-
-    # Debug: Log the filters applied
-    print(f"Filters applied: {filters}")
-
-    # Remove the exclusion of records with empty description
-    inner_prestamos = InnerPrestamo.objects.filter(**filters)
-
-    # Debug: Log the raw query
-    print(inner_prestamos.query)
-
-    total_inner_prestamos = inner_prestamos.count()
-
+    # Get and filter queryset with ID ordering
+    inner_prestamos = InnerPrestamo.objects.filter(**filters).order_by('id')  # Changed to 'id'
+    
+    # Paginate results
     paginator = InnerPrestamoPagination()
-    paginated_prestamos = paginator.paginate_queryset(inner_prestamos, request)
-
-    # Serialize the paginated results
-    serializer = InnerPrestamoSerializer(paginated_prestamos, many=True)
-
-    # Prepare response data
-    response_data = {
-        'total_inner_prestamos': total_inner_prestamos,
+    paginated_queryset = paginator.paginate_queryset(inner_prestamos, request)
+    
+    # Serialize data
+    serializer = InnerPrestamoSerializer(paginated_queryset, many=True)
+    
+    return Response({
+        'total_inner_prestamos': inner_prestamos.count(),
         'total_pages': paginator.page.paginator.num_pages,
-        'results': serializer.data,
-    }
-
-    # Debug: Log the response data
-    print(f"Response data: {response_data}")
-
-    return Response(response_data, status=status.HTTP_200_OK)
-
-
+        'results': serializer.data
+    })
 
 # SQL REQUESTS  
 
