@@ -53,6 +53,8 @@ urlpatterns = [
     path('pagemaster/import-users/', views.import_users_from_excel, name='import_users_from_excel'),
     path('pagemaster/import_prestamos/', views.import_prestamos, name='import_prestamos'),
     path('pagemaster/search_inner_prestamos/', views.search_inner_prestamos, name='search_inner_prestamos'),
+    path('pagemaster/file_upload/', views.upload_files, name='upload_files'),
+    path('pagemaster/search_file_uploads/', views.search_file_uploads, name='search_file_uploads'),
 
 
 

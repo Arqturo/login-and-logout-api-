@@ -5,6 +5,9 @@ from django.conf import settings
 from rest_framework.authtoken.models import Token as DefaultToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+import os
+import uuid
+from django.core.exceptions import ValidationError
 
 class CustomUser(AbstractUser):
     cedula = models.CharField(
@@ -120,3 +123,48 @@ class InnerPrestamo(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class FileUpload(models.Model):
+    # Unique serial for the file upload record
+    serial = models.CharField(max_length=255, unique=True)
+    # Directory where files will be saved
+    directory = models.CharField(max_length=255, unique=True)
+
+    def save(self, *args, **kwargs):
+        # If no serial is provided, generate a unique one
+        if not self.serial:
+            self.serial = uuid.uuid4().hex  # Generate a unique serial if not set
+        
+        # If no directory is provided, generate one using the serial
+        if not self.directory:
+            self.directory = os.path.join('uploads', self.serial)
+        
+        # Save the model instance
+        super(FileUpload, self).save(*args, **kwargs)
+
+    def create_files(self, files):
+        # Ensure the total size of the files does not exceed 50MB
+        total_size = sum(file.size for file in files)
+        if total_size > 50 * 1024 * 1024:  # 50MB
+            raise ValidationError("Total file size exceeds 50MB.")
+
+        # Create a unique directory to store the files in MEDIA_ROOT
+        upload_dir = os.path.join(settings.MEDIA_ROOT, self.directory)
+        os.makedirs(upload_dir, exist_ok=True)  # Create the directory if it doesn't exist
+
+        # Iterate through the files and save each one
+        for file in files:
+            # Generate the full file path
+            file_path = os.path.join(upload_dir, file.name)
+            # Save the file to the disk
+            with open(file_path, 'wb') as f:
+                for chunk in file.chunks():
+                    f.write(chunk)
+
+        return self
+
+    def clean_directory(self):
+        # Ensure no double slashes in the directory path
+        self.directory = self.directory.replace("\\", "/")  # Replace backslashes with forward slashes
+        return self.directory

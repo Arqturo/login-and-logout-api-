@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.response import Response
 from django.http import FileResponse, Http404
 import os
-from .serializers import CustomUserSerializer, PageMasterSerializer, PostSerializer,InnerPrestamoSerializer  
+from .serializers import CustomUserSerializer, PageMasterSerializer, PostSerializer,InnerPrestamoSerializer,FileUploadSerializer  
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -29,9 +29,12 @@ import logging
 import pandas as pd
 from django.core.management.base import BaseCommand
 from server.models import UserCaja  #
+from django.core.exceptions import ValidationError
 
 from django.http import JsonResponse
 from django.db import transaction
+from .models import FileUpload  # Import the FileUpload model
+from django.shortcuts import render
 
 
 
@@ -1006,3 +1009,70 @@ def get_loan_options(request):
         "data": loan_options
     })
 
+
+
+# file upload
+
+
+def upload_files(request):
+    if request.method == 'POST' and request.FILES.getlist('files'):
+        try:
+            # Retrieve the serial from the form data (not from request.data)
+            serial = request.POST.get('serial')  # Use `request.POST.get()` for form fields
+            
+            # If no serial is provided, raise an error
+            if not serial:
+                return JsonResponse({'error': 'Serial is required.'}, status=400)
+
+            # Get the uploaded files
+            files = request.FILES.getlist('files')
+
+            # Create the FileUpload model with the provided serial
+            file_upload = FileUpload(serial=serial)
+            file_upload.save()  # Save the model to generate the directory
+
+            # Now create files in the specified directory
+            file_upload.create_files(files)
+
+            return JsonResponse({'message': 'Files uploaded successfully!', 'serial': file_upload.serial}, status=201)
+
+        except ValidationError as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        
+
+class FileUploadPagination(PageNumberPagination):
+    page_size = 10  # Number of results per page (you can adjust this)
+    page_size_query_param = 'page_size'  # Allow clients to specify the page size (optional)
+    max_page_size = 100  # Max limit for page size (optional)
+
+
+# views.py
+# # Pagination for FileUpload
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])  # Change this if you have specific permissions
+def search_file_uploads(request):
+    # Get query parameters from request
+    serial = request.query_params.get('serial', None)
+    
+    # Create filter dictionary
+    filters = {}
+    if serial:
+        filters['serial__icontains'] = serial  # Searching serial with partial match
+    
+    # Get and filter queryset with ID ordering
+    file_uploads = FileUpload.objects.filter(**filters).order_by('id')
+    
+    # Paginate results
+    paginator = FileUploadPagination()  # Ensure you have this pagination class
+    paginated_queryset = paginator.paginate_queryset(file_uploads, request)
+    
+    # Serialize data
+    serializer = FileUploadSerializer(paginated_queryset, many=True)
+    
+    # Return the response with pagination information and serialized data
+    return Response({
+        'total_file_uploads': file_uploads.count(),
+        'total_pages': paginator.page.paginator.num_pages,
+        'results': serializer.data
+    })

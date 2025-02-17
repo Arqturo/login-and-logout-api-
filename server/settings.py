@@ -69,7 +69,6 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -186,3 +185,10 @@ logger = logging.getLogger(__name__)
 # Log the server start message
 server_start_message = os.getenv('SERVER_START_MESSAGE', 'Servidor activo.')
 logger.info(server_start_message)
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+CSRF_COOKIE_SECURE = False
+CSRF_USE_SESSIONS = False

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, PageMaster, Post,InnerPrestamo
+from .models import CustomUser, PageMaster, Post,InnerPrestamo,FileUpload  
 from rest_framework import serializers
 from django.utils import timezone
 
@@ -92,3 +92,20 @@ class PostSerializer(serializers.ModelSerializer):
         # Update only the updated_at timestamp on update
         validated_data['updated_at'] = timezone.now()
         return super().update(instance, validated_data)
+
+class FileUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FileUpload
+        fields = ['id', 'serial', 'directory']  # Add any other fields you want to expose
+
+class FileUploadSerializer(serializers.ModelSerializer):
+    # This method will clean the directory value before returning it in the serialized data
+    directory = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FileUpload
+        fields = ['id', 'serial', 'directory']  # Add any other fields you want to expose
+
+    def get_directory(self, obj):
+        # Clean the directory to remove any extra slashes
+        return obj.clean_directory()  # Assuming clean_directory method is in your model
