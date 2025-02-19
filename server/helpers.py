@@ -1,7 +1,15 @@
 from django.db import connections
+from .models import InnerPrestamo  # Import the InnerPrestamo model
 
 def verificar_eligibilidad_prestamo(cedula, codptmo):
-    # Use 'sqlserver' connection explicitly from Django's connections object
+    # Check if the InnerPrestamo is enabled for the given loan code (prestamo_id = codptmo)
+    inner_prestamo = InnerPrestamo.objects.filter(prestamo_id=codptmo, enable=True).first()
+
+    # If no active InnerPrestamo found, return the message
+    if not inner_prestamo:
+        return {'error': 'El préstamo no está disponible online de momento.'}
+
+    # If there is an active InnerPrestamo, continue with the rest of the checks
     with connections['sqlserver'].cursor() as cursor:
         cursor.execute("SELECT REFINANCIA, MINCUOPAGO, FRECUENCIA, DESCRIP, RECPRE FROM PRESTAMO WHERE CODPTMO = %s", [codptmo])
         datos_prestamo = cursor.fetchone()
