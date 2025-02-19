@@ -35,6 +35,7 @@ urlpatterns = [
     path('user/dividendos/', views.dividendos, name='dividendos'),
     path('user/solicitudes/', views.solicitudes, name='solicitudes'),
     path('user/create_loan_request/', views.create_loan_request, name='loadRequest'),
+    path('user/verify_loan/', views.verify_loan, name='verify_loan'),
     path('user/get_loan_options/', views.get_loan_options, name='get_loan_options'),
 
     path('user/fianzas/', views.fianza, name='fianza'),

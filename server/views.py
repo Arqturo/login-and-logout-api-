@@ -23,7 +23,7 @@ from django.utils import timezone
 from rest_framework.pagination import PageNumberPagination
 from django.db import connections
 from django.contrib.auth.models import Group
-from .models import InnerPrestamo  # Make sure to import your model for InnerPrestamo
+from .models import InnerPrestamo
 import logging
 
 import pandas as pd
@@ -33,8 +33,9 @@ from django.core.exceptions import ValidationError
 
 from django.http import JsonResponse
 from django.db import transaction
-from .models import FileUpload  # Import the FileUpload model
+from .models import FileUpload 
 from django.shortcuts import render
+from .helpers import verificar_eligibilidad_prestamo  
 
 
 
@@ -283,6 +284,31 @@ def create_loan_request(request):
     except Exception as e:
         # Handle any exceptions (e.g., database errors) and return a failure response
         return Response({'message': str(e), 'can_create': False}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsCustomUser])
+def verify_loan(request):
+    if request.method == 'POST':
+        cedula = int(request.user.cedula)
+        
+        # Log the incoming request data to inspect
+        print(f"Request Data: {request.data}")  # For JSON requests
+        print(f"Request POST: {request.POST}")  # For form requests
+
+        cod_prestamo = request.data.get('codptmo')  # Use .get for safety
+
+        print(f"COD_PRESTAMO: {cod_prestamo}")
+
+        # Llamamos al helper para verificar si el socio es elegible
+        resultado = verificar_eligibilidad_prestamo(cedula, cod_prestamo)
+
+        # Comprobamos si hay un error
+        if 'error' in resultado:
+            return JsonResponse({'error': resultado['error']}, status=400)
+
+        # Si no hay error, el socio puede solicitar el préstamo
+        return JsonResponse({'message': resultado['message']}, status=200)
 
 
 
