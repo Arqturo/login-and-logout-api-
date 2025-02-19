@@ -953,6 +953,43 @@ def import_prestamos(request):
     }, status=status.HTTP_200_OK)
 
 
+@api_view(['POST'])
+@permission_classes([IsPageMaster])  # Assuming IsPageMaster is a custom permission
+def update_inner_prestamo(request):
+    # Get 'prestamo_id' and the fields to update from the request body
+    prestamo_id = request.data.get('prestamo_id')
+    new_name = request.data.get('name')
+    new_description = request.data.get('description', '')  # Optional, default to empty string
+    new_enable = request.data.get('enable', False)  # Optional, default to False
+    
+    # Validate that the 'prestamo_id' was provided
+    if not prestamo_id:
+        return Response({'error': 'prestamo_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if the InnerPrestamo exists
+    inner_prestamo = InnerPrestamo.objects.filter(prestamo_id=prestamo_id).first()
+    if not inner_prestamo:
+        return Response({'error': 'InnerPrestamo with the given prestamo_id does not exist.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Update the fields if they are provided
+    if new_name:
+        inner_prestamo.name = new_name
+    if new_description:
+        inner_prestamo.description = new_description
+    if new_enable is not None:  # Only update if the value is explicitly provided
+        inner_prestamo.enable = new_enable
+
+    # Save the updated InnerPrestamo
+    inner_prestamo.save()
+
+    # Return a success response with updated data
+    return Response({
+        'message': 'InnerPrestamo updated successfully.',
+        'prestamo_id': inner_prestamo.prestamo_id,
+        'name': inner_prestamo.name,
+        'description': inner_prestamo.description,
+        'enable': inner_prestamo.enable,
+    }, status=status.HTTP_200_OK)
 
 ####################################
 
