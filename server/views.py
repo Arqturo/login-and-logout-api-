@@ -37,6 +37,8 @@ from .models import FileUpload
 from django.shortcuts import render
 from .helpers import verificar_eligibilidad_prestamo  
 
+import shutil
+
 
 MAX_FILE_SIZE = 80 * 1024 * 1024  # 80 MB
 
@@ -237,7 +239,7 @@ def create_loan_request(request):
 
             # Check if the total size exceeds the maximum limit (80MB)
             if total_size > MAX_FILE_SIZE:
-                return JsonResponse({'error': f'Total file size exceeds the maximum allowed size of 80MB.'}, status=400)
+                return JsonResponse({'error': f'el peso total de los archivos exeden los 80MB'}, status=400)
 
         # Extract necessary data from the request (cedulasoc and codptmo)
         cedulasoc = int(request.user.cedula)
@@ -290,7 +292,7 @@ def create_loan_request(request):
 
                 # Check if the total size exceeds the maximum limit (80MB)
                 if total_size > MAX_FILE_SIZE:
-                    return JsonResponse({'error': f'Total file size exceeds the maximum allowed size of 80MB.'}, status=400)
+                    return JsonResponse({'error': f'El peso total de los archivos exeden los 80MB.'}, status=400)
 
                 # Create the FileUpload model with the provided serial
                 file_upload = FileUpload(serial=serial)
@@ -1104,7 +1106,8 @@ def get_loan_options(request):
 
 
 # file upload
-
+@api_view(['POST'])
+@permission_classes([IsPageMaster])
 def upload_files(request):
     if request.method == 'POST' and request.FILES.getlist('files'):
         try:
@@ -1148,7 +1151,7 @@ class FileUploadPagination(PageNumberPagination):
 # # Pagination for FileUpload
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])  # Change this if you have specific permissions
+@permission_classes([IsPageMaster])
 def search_file_uploads(request):
     # Get query parameters from request
     serial = request.query_params.get('serial', None)
@@ -1174,3 +1177,41 @@ def search_file_uploads(request):
         'total_pages': paginator.page.paginator.num_pages,
         'results': serializer.data
     })
+
+
+
+
+@api_view(['DELETE'])
+@permission_classes([IsPageMaster])
+def delete_file_upload(request):
+    # Get serial from query parameters
+    serial = request.query_params.get('serial', None)
+    
+    # If serial is not provided, return an error
+    if not serial:
+        return Response({'error': 'Serial es necesario'}, status=400)
+    
+    try:
+        # Try to get the FileUpload object by serial
+        file_upload = get_object_or_404(FileUpload, serial=serial)
+        
+        # Path to the directory where the files are stored
+        directory_path = file_upload.directory
+        
+        # Optionally: Check if the directory exists and delete it
+        if os.path.exists(directory_path):
+            # If it's a directory, remove it recursively
+            shutil.rmtree(directory_path)
+        
+        # Delete the FileUpload record from the database
+        file_upload.delete()
+
+        # Return success message
+        return Response({'message': f'Los archivos del serial {serial} han sido eliminados'}, status=200)
+    
+    except FileUpload.DoesNotExist:
+        return Response({'error': f'Archivos con el {serial} no conseguidos.'}, status=404)
+    
+    except Exception as e:
+        # Handle any other potential errors
+        return Response({'error': str(e)}, status=500)
