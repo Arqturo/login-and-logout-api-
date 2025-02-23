@@ -57,6 +57,7 @@ urlpatterns = [
     path('pagemaster/update_inner_prestamo/', views.update_inner_prestamo, name='update_inner_prestamo'),
     path('pagemaster/file_upload/', views.upload_files, name='upload_files'),
     path('pagemaster/search_file_uploads/', views.search_file_uploads, name='search_file_uploads'),
+    path('pagemaster/delete_file_upload/<str:serial>/', views.delete_file_upload, name='delete_file_upload'),
 
 
 

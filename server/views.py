@@ -1178,30 +1178,28 @@ def search_file_uploads(request):
         'results': serializer.data
     })
 
-
-
-
 @api_view(['DELETE'])
 @permission_classes([IsPageMaster])
-def delete_file_upload(request):
-    # Get serial from query parameters
-    serial = request.query_params.get('serial', None)
-    
-    # If serial is not provided, return an error
+def delete_file_upload(request, serial):
+    # If serial is not provided (it should always be in the URL as a parameter), return an error
     if not serial:
         return Response({'error': 'Serial es necesario'}, status=400)
-    
+
     try:
         # Try to get the FileUpload object by serial
         file_upload = get_object_or_404(FileUpload, serial=serial)
         
         # Path to the directory where the files are stored
         directory_path = file_upload.directory
+        print(f"Attempting to delete files at path: {directory_path}")  # Log the directory path
         
         # Optionally: Check if the directory exists and delete it
         if os.path.exists(directory_path):
             # If it's a directory, remove it recursively
             shutil.rmtree(directory_path)
+        else:
+            file_upload.delete()
+            return Response({'error': 'Carpeta no encontrada'}, status=200)
         
         # Delete the FileUpload record from the database
         file_upload.delete()
@@ -1210,7 +1208,7 @@ def delete_file_upload(request):
         return Response({'message': f'Los archivos del serial {serial} han sido eliminados'}, status=200)
     
     except FileUpload.DoesNotExist:
-        return Response({'error': f'Archivos con el {serial} no conseguidos.'}, status=404)
+        return Response({'error': f'Archivos con el serial {serial} no conseguidos.'}, status=404)
     
     except Exception as e:
         # Handle any other potential errors
