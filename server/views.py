@@ -38,6 +38,7 @@ from django.shortcuts import render
 from .helpers import verificar_eligibilidad_prestamo  
 
 
+MAX_FILE_SIZE = 80 * 1024 * 1024  # 80 MB
 
 
 
@@ -221,11 +222,23 @@ def get_int_param(data, param_name, default=None):
     except ValueError:
         raise ValueError(f"'{param_name}' should be an integer.")
     
+
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def create_loan_request(request):
     try:
+        # First, check if files are present
+        if request.FILES.getlist('files'):
+            files = request.FILES.getlist('files')
+
+            # Calculate the total size of all the files
+            total_size = sum(file.size for file in files)
+
+            # Check if the total size exceeds the maximum limit (80MB)
+            if total_size > MAX_FILE_SIZE:
+                return JsonResponse({'error': f'Total file size exceeds the maximum allowed size of 80MB.'}, status=400)
+
         # Extract necessary data from the request (cedulasoc and codptmo)
         cedulasoc = int(request.user.cedula)
         codptmo = request.data.get('codptmo')
@@ -268,6 +281,24 @@ def create_loan_request(request):
 
         # After executing the stored procedure, check if serial is valid
         if serial:
+            # Check if files were uploaded and their total size
+            if request.FILES.getlist('files'):
+                files = request.FILES.getlist('files')
+
+                # Calculate the total size of all the files
+                total_size = sum(file.size for file in files)
+
+                # Check if the total size exceeds the maximum limit (80MB)
+                if total_size > MAX_FILE_SIZE:
+                    return JsonResponse({'error': f'Total file size exceeds the maximum allowed size of 80MB.'}, status=400)
+
+                # Create the FileUpload model with the provided serial
+                file_upload = FileUpload(serial=serial)
+                file_upload.save()  # Save the model to generate the directory
+
+                # Now create files in the specified directory
+                file_upload.create_files(files)
+
             return JsonResponse({
                 'message': 'Préstamo creado exitosamente',
                 'serial': serial  # Include the generated serial in the response
@@ -279,6 +310,7 @@ def create_loan_request(request):
     except Exception as e:
         # Handle any exceptions (e.g., database errors) and return a failure response
         return JsonResponse({'error': str(e)}, status=500)
+
 
 
     
@@ -1073,7 +1105,6 @@ def get_loan_options(request):
 
 # file upload
 
-
 def upload_files(request):
     if request.method == 'POST' and request.FILES.getlist('files'):
         try:
@@ -1087,6 +1118,13 @@ def upload_files(request):
             # Get the uploaded files
             files = request.FILES.getlist('files')
 
+            # Calculate the total size of all the files
+            total_size = sum(file.size for file in files)
+
+            # Check if the total size exceeds the maximum limit (80MB)
+            if total_size > MAX_FILE_SIZE:
+                return JsonResponse({'error': f'Total file size exceeds the maximum allowed size of 80MB.'}, status=400)
+
             # Create the FileUpload model with the provided serial
             file_upload = FileUpload(serial=serial)
             file_upload.save()  # Save the model to generate the directory
@@ -1098,7 +1136,7 @@ def upload_files(request):
 
         except ValidationError as e:
             return JsonResponse({'error': str(e)}, status=400)
-        
+
 
 class FileUploadPagination(PageNumberPagination):
     page_size = 10  # Number of results per page (you can adjust this)
