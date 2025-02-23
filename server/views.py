@@ -1179,7 +1179,6 @@ def search_file_uploads(request):
     })
 
 @api_view(['DELETE'])
-@permission_classes([IsPageMaster])
 def delete_file_upload(request, serial):
     # If serial is not provided (it should always be in the URL as a parameter), return an error
     if not serial:
@@ -1199,7 +1198,7 @@ def delete_file_upload(request, serial):
             shutil.rmtree(directory_path)
         else:
             file_upload.delete()
-            return Response({'error': 'Carpeta no encontrada'}, status=200)
+            return Response({'message': 'Carpeta no encontrada'}, status=200)
         
         # Delete the FileUpload record from the database
         file_upload.delete()
