@@ -652,14 +652,15 @@ WHERE S.CEDSOC = %s AND S.SALDO > 0
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])  # Adjust as per your custom user permission
+@permission_classes([IsAuthenticated])
 def loan_preset(request):
-    # Get the 'id' from the request body
+    # Get the loan ID from the request body
     loan_id = request.data.get('id', None)
 
     if loan_id is None:
-        return Response({"detail": "ID is required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Loan ID is required in the request body"}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Proceed to retrieve loan preset information
     query = """
     SELECT 
         [CODPTMO],
@@ -681,14 +682,13 @@ def loan_preset(request):
     FROM [oca20].[dbo].[PREPAR]
     WHERE ESTADO = 1 AND CODPTMO = %s
     """
-
     with connections['sqlserver'].cursor() as cursor:
         cursor.execute(query, [loan_id])
         rows = cursor.fetchall()
 
-    # Check if we have any rows returned and return the first one
+    # Check if data was found for the given loan_id
     if rows:
-        row = rows[0]  # Get the first row
+        row = rows[0]
         result = {
             'CODPTMO': row[0],
             'CONTROL': row[1],
@@ -711,6 +711,7 @@ def loan_preset(request):
         result = {}
 
     return Response(result, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
