@@ -650,6 +650,67 @@ WHERE S.CEDSOC = %s AND S.SALDO > 0
 
     return Response(results, status=status.HTTP_200_OK)
 
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])  # Adjust as per your custom user permission
+def loan_preset(request):
+    # Get the 'id' from the request body
+    loan_id = request.data.get('id', None)
+
+    if loan_id is None:
+        return Response({"detail": "ID is required in the request body."}, status=status.HTTP_400_BAD_REQUEST)
+
+    query = """
+    SELECT 
+        [CODPTMO],
+        [CONTROL],
+        [TASA],
+        [PLAZOM],
+        [TIPMONMAX],
+        [FACTOR],
+        [MONTOMAX],
+        [CUOESP],
+        [MMC],
+        [ESTADO],
+        [A07MESES],
+        [A12MESES],
+        [CUOCONV],
+        [ID_CONVENIO],
+        [PolizaVida],
+        [PolizaIncendio]
+    FROM [oca20].[dbo].[PREPAR]
+    WHERE ESTADO = 1 AND CODPTMO = %s
+    """
+
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [loan_id])
+        rows = cursor.fetchall()
+
+    # Check if we have any rows returned and return the first one
+    if rows:
+        row = rows[0]  # Get the first row
+        result = {
+            'CODPTMO': row[0],
+            'CONTROL': row[1],
+            'TASA': row[2],
+            'PLAZOM': row[3],
+            'TIPMONMAX': row[4],
+            'FACTOR': row[5],
+            'MONTOMAX': row[6],
+            'CUOESP': row[7],
+            'MMC': row[8],
+            'ESTADO': row[9],
+            'A07MESES': row[10],
+            'A12MESES': row[11],
+            'CUOCONV': row[12],
+            'ID_CONVENIO': row[13],
+            'PolizaVida': row[14],
+            'PolizaIncendio': row[15],
+        }
+    else:
+        result = {}
+
+    return Response(result, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -1024,83 +1085,28 @@ def update_inner_prestamo(request):
 
 ####################################
 
-
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsCustomUser])
 def get_loan_options(request):
-    cedula = request.user.cedula
-    nombres = request.user.full_name
+    # Get query parameters from request
+    name = request.query_params.get('name', None)
     
-    if not cedula:
-        return Response({"success": False, "message": "Cedula is required"}, status=400)
+    # Create filter dictionary
+    filters = {'enable': True}  # Only get enabled prestamos
+    if name:
+        filters['name__icontains'] = name  # Filter by name if provided
     
-    # Step 1: Fetch savings details based on cedula
-    with connections['sqlserver'].cursor() as cursor:
-        cursor.execute("""
-            SELECT S.CODAHO, A.DESCRIP, S.SALDOAHO
-            FROM oca20.dbo.AHOSOCIO S
-            INNER JOIN AHORROS A ON A.CODAHO = S.CODAHO
-            WHERE S.CEDSOC = %s AND (S.CODAHO = 98 OR S.CODAHO = 99)
-        """, [cedula])
-        
-        savings_data = cursor.fetchall()
-        total_savings = sum(row[2] for row in savings_data)
-        savings_descriptions = [row[1] for row in savings_data]  # Extracting descriptions of savings
-        savings_amounts = [row[2] for row in savings_data]  # Extracting amounts of savings
-
-    # Step 2: Fetch available loans
-    with connections['sqlserver'].cursor() as cursor:
-        cursor.execute("SELECT * FROM PRESTAMO WHERE ESTADO = 'A' AND ACT_WEB = 1")
-        loans = cursor.fetchall()
-
-    loan_options = []
-    for loan in loans:
-        loan_data = {
-            "loan_id": loan[0],  # Assuming loan ID is in the first column
-            "description": f"{loan[1]} {loan[2]}",  # Assuming description is in the second and third columns
-            "img_url": f"assets/images/prestamos/{loan[4]}.png",  # Assuming image is in the 5th column
-            "codprestamo": loan[0],  # Loan code (same as loan ID)
-            "ncuotas": [1, 2],  # Possible cuotas (installments)
-            "recaudos": [],
-            "max_amount": 0,
-            "savings_details": [],
-            "garantia": loan[5] if len(loan) > 5 else None,  # Assuming guarantee data is available in column 5
-            "serial": loan[6] if len(loan) > 6 else None,  # Assuming serial is available in column 6
-        }
-
-        # Step 3: Calculate the maximum loan amount
-        if loan[0] == 1:  # Example: for loan with CODPTMO = 1
-            loan_data["max_amount"] = float(total_savings) * 0.5  # Convert total_savings to float
-        elif loan[0] == 2 or loan[0] == 18:  # Loans based on specific savings types
-            loan_data["max_amount"] = float(total_savings) * 0.8  # Convert total_savings to float
-        else:
-            loan_data["max_amount"] = float(total_savings)  # Default to the total savings as float
-
-        # Add savings details (descriptions and amounts) to the loan data
-        for desc, amt in zip(savings_descriptions, savings_amounts):
-            loan_data["savings_details"].append({
-                "description": desc,  # Savings description
-                "amount": float(amt),  # Convert amount to float
-            })
-
-        # Step 4: Fetch related document requirements (recaudos)
-        with connections['sqlserver'].cursor() as cursor:
-            cursor.execute("SELECT * FROM RECAPRES WHERE CODPTMO = %s", [loan[0]])
-            recaudos = cursor.fetchall()
-            for recaudo in recaudos:
-                loan_data["recaudos"].append({
-                    "document": recaudo[1],  # Assuming document name is in second column
-                    "optional": "Optional" if recaudo[2] == '1' else "Required"  # Assuming optional flag is in third column
-                })
-
-        loan_options.append(loan_data)
-
-    # Step 5: Return the loan options in a JSON response
+    # Get all enabled inner prestamos
+    inner_prestamos = InnerPrestamo.objects.filter(**filters).order_by('id')
+    
+    # Serialize the queryset with the fields defined in the serializer
+    serializer = InnerPrestamoSerializer(inner_prestamos, many=True)
+    
+    # Return the response with the filtered data
     return Response({
-        "success": True,
-        "message": "Loan options fetched successfully",
-        "data": loan_options
+        'total_inner_prestamos': inner_prestamos.count(),
+        'results': serializer.data
     })
 
 

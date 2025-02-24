@@ -37,6 +37,7 @@ urlpatterns = [
     path('user/create_loan_request/', views.create_loan_request, name='loadRequest'),
     path('user/verify_loan/', views.verify_loan, name='verify_loan'),
     path('user/get_loan_options/', views.get_loan_options, name='get_loan_options'),
+     path('user/loan_preset/', views.loan_preset, name='loan_preset'),
 
     path('user/fianzas/', views.fianza, name='fianza'),
     path('profile/edit/', views.update_own_profile, name='update_own_profile'),
