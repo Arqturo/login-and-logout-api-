@@ -8,6 +8,8 @@ from django.utils import timezone
 import os
 import uuid
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 
 class CustomUser(AbstractUser):
     cedula = models.CharField(
@@ -120,9 +122,44 @@ class InnerPrestamo(models.Model):
     name = models.CharField(max_length=255)  # 'name' will store 'DESCRIP' from SQL
     description = models.TextField(blank=True)
     enable = models.BooleanField(default=False)
+    
+    numcuotamins = models.PositiveIntegerField()  # Positive integer for minimum number of installments
+    numcuotasmax = models.PositiveIntegerField()  # Positive integer for maximum number of installments
+    montomin = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)]  # Ensure the value is non-negative
+    )  # Positive decimal for minimum amount
+    montomax = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)]  # Ensure the value is non-negative
+    )  # Positive decimal for maximum amount
+    
+    GARCHOICES = [('yes', 'Yes'), ('no', 'No'), ('no_or_yes', 'No or Yes')]
+    garantia = models.CharField(max_length=9, choices=GARCHOICES, default='no')  # 'Garantia' choices
+    
+    MODCHOICES = [('yes', 'Yes'), ('no', 'No'), ('no_or_yes', 'No or Yes')]
+    modalidad = models.CharField(max_length=9, choices=MODCHOICES, default='no')  # 'Modalidad' choices
+    
+    CUOTACHOICES = [('yes', 'Yes'), ('no', 'No'), ('no_or_yes', 'No or Yes')]
+    cuota_especial = models.CharField(max_length=9, choices=CUOTACHOICES, default='no')  # 'Cuota Especial' choices
+    
+    tasa = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0), MaxValueValidator(100)]  # Ensure rate is between 0 and 100
+    )  # Positive decimal for rate (0-100)
+    mmc = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0), MaxValueValidator(100)]  # Ensure MMC is between 0 and 100
+    )  # Positive decimal for MMC (0-100)
 
     def __str__(self):
         return self.name
+
+
 
 
 class FileUpload(models.Model):

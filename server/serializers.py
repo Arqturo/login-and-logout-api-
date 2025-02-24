@@ -3,10 +3,27 @@ from .models import CustomUser, PageMaster, Post,InnerPrestamo,FileUpload
 from rest_framework import serializers
 from django.utils import timezone
 
+
 class InnerPrestamoSerializer(serializers.ModelSerializer):
     class Meta:
         model = InnerPrestamo
-        fields = ['id', 'name', 'description', 'enable']  # Include the fields you want to expose in the API
+        fields = [
+            'id', 
+            'prestamo_id', 
+            'name', 
+            'description', 
+            'enable', 
+            'numcuotamins', 
+            'numcuotasmax', 
+            'montomin', 
+            'montomax', 
+            'garantia', 
+            'modalidad', 
+            'cuota_especial', 
+            'tasa', 
+            'mmc'
+        ]  # Include all the fields you want to expose in the API
+
 
 class CustomUserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()

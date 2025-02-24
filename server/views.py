@@ -1046,14 +1046,11 @@ def import_prestamos(request):
     }, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
+@@api_view(['POST'])
 @permission_classes([IsPageMaster])  # Assuming IsPageMaster is a custom permission
 def update_inner_prestamo(request):
     # Get 'prestamo_id' and the fields to update from the request body
     prestamo_id = request.data.get('prestamo_id')
-    new_name = request.data.get('name')
-    new_description = request.data.get('description', '')  # Optional, default to empty string
-    new_enable = request.data.get('enable', False)  # Optional, default to False
     
     # Validate that the 'prestamo_id' was provided
     if not prestamo_id:
@@ -1064,13 +1061,18 @@ def update_inner_prestamo(request):
     if not inner_prestamo:
         return Response({'error': 'InnerPrestamo with the given prestamo_id does not exist.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Update the fields if they are provided
-    if new_name:
-        inner_prestamo.name = new_name
-    if new_description:
-        inner_prestamo.description = new_description
-    if new_enable is not None:  # Only update if the value is explicitly provided
-        inner_prestamo.enable = new_enable
+    # Extract all possible fields from the request data and update them if provided
+    fields_to_update = [
+        'name', 'description', 'enable', 'numcuotamins', 'numcuotasmax', 
+        'montomin', 'montomax', 'garantia', 'modalidad', 'cuota_especial', 
+        'tasa', 'mmc'
+    ]
+    
+    # Loop through each field and update if it is present in the request data
+    for field in fields_to_update:
+        new_value = request.data.get(field)
+        if new_value is not None:  # Only update if the field is provided in the request
+            setattr(inner_prestamo, field, new_value)
 
     # Save the updated InnerPrestamo
     inner_prestamo.save()
@@ -1082,8 +1084,16 @@ def update_inner_prestamo(request):
         'name': inner_prestamo.name,
         'description': inner_prestamo.description,
         'enable': inner_prestamo.enable,
+        'numcuotamins': inner_prestamo.numcuotamins,
+        'numcuotasmax': inner_prestamo.numcuotasmax,
+        'montomin': inner_prestamo.montomin,
+        'montomax': inner_prestamo.montomax,
+        'garantia': inner_prestamo.garantia,
+        'modalidad': inner_prestamo.modalidad,
+        'cuota_especial': inner_prestamo.cuota_especial,
+        'tasa': inner_prestamo.tasa,
+        'mmc': inner_prestamo.mmc,
     }, status=status.HTTP_200_OK)
-
 ####################################
 
 @api_view(['GET'])
