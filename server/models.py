@@ -163,38 +163,29 @@ class InnerPrestamo(models.Model):
 
 
 class FileUpload(models.Model):
-    # Unique serial for the file upload record
     serial = models.CharField(max_length=255, unique=True)
-    # Directory where files will be saved
     directory = models.CharField(max_length=255, unique=True)
 
     def save(self, *args, **kwargs):
-        # If no serial is provided, generate a unique one
         if not self.serial:
-            self.serial = uuid.uuid4().hex  # Generate a unique serial if not set
+            self.serial = str(uuid.uuid4().hex)  # Ensure serial is a string
         
-        # If no directory is provided, generate one using the serial
         if not self.directory:
-            self.directory = os.path.join('uploads', self.serial)
+            self.directory = os.path.join('uploads', str(self.serial))  # Ensure it's a string
         
-        # Save the model instance
         super(FileUpload, self).save(*args, **kwargs)
 
     def create_files(self, files):
-        # Ensure the total size of the files does not exceed 50MB
         total_size = sum(file.size for file in files)
         if total_size > 50 * 1024 * 1024:  # 50MB
             raise ValidationError("Total file size exceeds 50MB.")
 
-        # Create a unique directory to store the files in MEDIA_ROOT
-        upload_dir = os.path.join(settings.MEDIA_ROOT, self.directory)
-        os.makedirs(upload_dir, exist_ok=True)  # Create the directory if it doesn't exist
+        upload_dir = os.path.join(settings.MEDIA_ROOT, str(self.directory))  # Ensure directory is a string
+        os.makedirs(upload_dir, exist_ok=True)
 
-        # Iterate through the files and save each one
         for file in files:
-            # Generate the full file path
-            file_path = os.path.join(upload_dir, file.name)
-            # Save the file to the disk
+            file_name = str(file.name)  # Ensure file name is a string
+            file_path = os.path.join(upload_dir, file_name)
             with open(file_path, 'wb') as f:
                 for chunk in file.chunks():
                     f.write(chunk)
@@ -202,6 +193,5 @@ class FileUpload(models.Model):
         return self
 
     def clean_directory(self):
-        # Ensure no double slashes in the directory path
-        self.directory = self.directory.replace("\\", "/")  # Replace backslashes with forward slashes
+        self.directory = str(self.directory).replace("\\", "/")  # Ensure it's a string
         return self.directory
