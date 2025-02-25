@@ -1046,7 +1046,7 @@ def import_prestamos(request):
     }, status=status.HTTP_200_OK)
 
 
-@@api_view(['POST'])
+@api_view(['POST'])
 @permission_classes([IsPageMaster])  # Assuming IsPageMaster is a custom permission
 def update_inner_prestamo(request):
     # Get 'prestamo_id' and the fields to update from the request body
