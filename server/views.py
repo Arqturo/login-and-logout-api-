@@ -94,8 +94,6 @@ def login(request):
         return Response({"error": "Ha ocurrido un error, por favor intentalo nuevamente."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-
 @api_view(['POST'])
 def register(request):
     cedula = request.data.get('cedula')
@@ -306,7 +304,7 @@ def create_loan_request(request):
         # SQL query to execute the stored procedure and capture the OUTPUT serial
         sp_query = """
             DECLARE @serial INT;
-            EXEC [dbo].[sp_CreaSolicitudPtmo] 
+            EXEC [dbo].[sp_CreaSolicitudPtmodos] 
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, @serial OUTPUT;
             SELECT @serial AS serial;
         """
