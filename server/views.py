@@ -99,6 +99,45 @@ def login(request):
 @api_view(['POST'])
 def register(request):
     cedula = request.data.get('cedula')
+
+    if not cedula:
+        return Response({"error": "Cedula is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Query to check if the user exists in the AFILIADOS table
+    query = """
+    SELECT [CEDSOC], [NOMBRE]
+    FROM [oca20].[dbo].[AFILIADOS]
+    WHERE CEDSOC = %s
+    """
+    
+    with connections['sqlserver'].cursor() as cursor:
+        cursor.execute(query, [cedula])
+        row = cursor.fetchone()
+
+    # Check if a result was found for the cedula
+    if not row:
+        return Response({"error": "No esta registrado en la base de datos de afiliados"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Proceed with creating the user
+    serializer = CustomUserSerializer(data=request.data)
+
+    if serializer.is_valid():
+        user = serializer.save()
+        user.set_password(request.data['password'])
+        user.save()
+
+        # Assign user to the CustomUser group
+        custom_user_group, _ = Group.objects.get_or_create(name='CustomUser')
+        user.groups.add(custom_user_group)
+
+        token = Token.objects.create(user=user)
+        return Response({'token': token.key, 'user': serializer.data}, status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def register_legacy(request):
+    cedula = request.data.get('cedula')
     user_caja = UserCaja.objects.filter(CE_TRABAJADOR=cedula).first()
     
     if not user_caja:
